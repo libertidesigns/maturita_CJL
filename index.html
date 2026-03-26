@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<meta name="theme-color" content="#060606"/>
+<title>MATURITA — Čtenářský deník</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@300;400;600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body,#root{height:100%;background:#060606;color:#ede8dc;}
+body{font-family:'Montserrat',sans-serif;-webkit-font-smoothing:antialiased;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:#0a0a0a;}
+::-webkit-scrollbar-thumb{background:#252525;border-radius:2px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+.anim-fade{animation:fadeIn 0.3s ease forwards;}
+.anim-slide{animation:slideUp 0.4s ease forwards;}
+input,button,textarea,select{font-family:'Montserrat',sans-serif;}
+input::placeholder{color:#5c5650;}
+button{cursor:pointer;}
+.tooltip-wrap{position:relative;display:inline;}
+.tooltip-term{color:#8B1A1A;border-bottom:1px dotted #8B1A1A;cursor:help;}
+.tooltip-box{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  background:#141414;border:1px solid #252525;border-radius:4px;padding:8px 12px;
+  width:220px;font-size:10px;line-height:1.5;color:#ede8dc;z-index:999;pointer-events:none;
+  font-family:'Montserrat',sans-serif;}
+.tooltip-wrap:hover .tooltip-box{display:block;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useMemo}=React;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// BRAND
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const C={
+  bg:"#060606",s0:"#0a0a0a",s1:"#0f0f0f",s2:"#141414",
+  border:"#1e1e1e",bHi:"#252525",
+  ivory:"#ede8dc",dim:"#5c5650",hi:"#9a9088",
+  merlot:"#8B1A1A"
+};
+const T={
+  t:{fontFamily:"'Teko',sans-serif"},
+  m:{fontFamily:"'Montserrat',sans-serif"}
+};
+
+const API_URL="https://script.google.com/macros/s/AKfycby9VYNrYGjzMKF6W8OyUXz_hHUoD1bpD8j3Sj8LB-tV9wQCeDKpkaEwhg6zETchZPgXjQ/exec";
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GLOSÁŘ — odborné pojmy pro hover tooltips
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const GLOSAR={
+  "lyrika":"Literární druh zachycující city, nálady a úvahy autora. Nemá děj, vyjadřuje subjektivní prožitek.",
+  "epika":"Literární druh vyprávějící příběh s dějem, postavami a prostředím.",
+  "drama":"Literární druh určený k divadelnímu předvedení. Děj se odehrává v dialozích postav.",
+  "romance":"Epická báseň s lyrickými prvky, zpravidla s milostným nebo hrdinským námětem.",
+  "balada":"Básnická nebo prozaická skladba s pochmurným dějem a tragickým koncem.",
+  "sonet":"Básnická forma o 14 verších (2 čtyřverší + 2 tercety), původem italská.",
+  "oda":"Slavnostní lyrická báseň oslavující osobu, vlast nebo ideu.",
+  "elegie":"Smutná lyrická báseň vyjadřující zármutek, nostalgii nebo rozjímání.",
+  "epos":"Rozsáhlá epická báseň líčící hrdinské činy a dobrodružství.",
+  "román":"Rozsáhlý prozaický útvar s rozvinutým dějem a mnoha postavami.",
+  "novela":"Kratší prozaický útvar s jednou dějovou linií a nečekaným zvratem.",
+  "povídka":"Krátký prozaický útvar s jednoduchým dějem a malým počtem postav.",
+  "tragédie":"Dramatický žánr s vážným konfliktem a tragickým koncem (smrt hrdiny).",
+  "komedie":"Dramatický žánr s humorným dějem a šťastným koncem.",
+  "satira":"Literární útvar zesměšňující chyby lidí nebo společnosti s cílem je napravit.",
+  "alegorie":"Vyjádření abstraktní myšlenky pomocí konkrétního příběhu nebo obrazu.",
+  "symbol":"Obraz nebo předmět zastupující jinou (zpravidla abstraktní) skutečnost.",
+  "metafora":"Přenesení pojmenování na základě podobnosti — 'moře slz'.",
+  "personifikace":"Přisuzování lidských vlastností neživým věcem nebo zvířatům.",
+  "hyperbola":"Záměrné přehánění pro zdůraznění nebo komický efekt.",
+  "ironie":"Říká se opak toho, co se myslí — zpravidla pro kritiku nebo humor.",
+  "realismus":"Literární směr 19. stol. zobrazující skutečnost věrně a objektivně.",
+  "romantismus":"Literární směr přelomu 18./19. stol. zdůrazňující cit, přírodu a individualitu.",
+  "naturalismus":"Krajní forma realismu — zobrazuje člověka jako výsledek dědičnosti a prostředí.",
+  "symbolismus":"Literární směr konce 19. stol. užívající symboly k vyjádření vnitřních stavů.",
+  "expresionismus":"Avantgardní směr zveličující vnitřní prožitek, deformující realitu.",
+  "existencialismus":"Filozoficko-lit. směr 20. stol. řešící otázky smyslu existence a svobody.",
+  "absurdní drama":"Drama zachycující nesmyslnost a beznaděj lidské existence (Beckett, Ionesco).",
+  "magický realismus":"Prolínání reálného a fantastického světa — typické pro lat.-amer. literaturu.",
+  "modernismus":"Souhrnný název pro avantgardní směry přelomu 19./20. stol. bouřící se proti tradicím.",
+  "dekadence":"Konec 19. stol. — pocity úpadku, přepychu, únava ze života.",
+  "rým":"Zvuková shoda konců veršů.",
+  "verš":"Jeden řádek básně.",
+  "strofa":"Skupina veršů oddělená od ostatních.",
+  "próza":"Literární forma bez pravidelného rytmu a rýmu.",
+  "vypravěč":"Ten, kdo v literárním díle vypráví příběh (er-forma, ich-forma).",
+  "ich-forma":"Vypravování v 1. osobě — 'já'.",
+  "er-forma":"Vypravování ve 3. osobě — 'on/ona'.",
+  "proud vědomí":"Technika zobrazující myšlenkový tok postav bez logického uspořádání.",
+  "anachronismus":"Prvek nepatřící do doby, o které se píše.",
+  "retrospektiva":"Zpětný pohled na minulé události.",
+  "kompozice":"Způsob, jakým je dílo uspořádáno (chronologicky, retrospektivně apod.).",
+  "leitmotiv":"Opakující se motiv, který symbolicky prostupuje celým dílem.",
+  "charakteristika":"Popis vlastností postavy.",
+  "konflikt":"Střet sil nebo zájmů — hlavní hnací motor děje.",
+  "katarze":"Očistný emocionální zážitek divácka po shlédnutí tragédie.",
+  "archetypální postava":"Postava zastupující obecně lidský typ (hrdina, zrádce, moudrý stařec...)",
+  "antiidyla":"Záměrné bourání idylického obrazu, odhalování skryté temnoty.",
+  "pikareskní román":"Dobrodružný román s nízkým hrdinou (šibalom) putujícím světem.",
+  "utopie":"Literární obraz ideální (neexistující) společnosti.",
+  "dystopie":"Varování před negativní budoucností — opakem utopie.",
+  "parodie":"Nápodobení jiného díla za účelem výsměchu nebo pobavení.",
+  "groteska":"Záměrné mísení hrozivého a komického, deformace reality.",
+  "černý humor":"Humorné zpracování tragických, morbidních nebo tabuizovaných témat.",
+  "eponymum":"Název díla odvozený od jména hlavní postavy (Anna Karenina, Hamlet).",
+  "monolog":"Dlouhá řeč jedné postavy.",
+  "dialog":"Rozhovor dvou nebo více postav.",
+  "rámcová kompozice":"Příběh zasazený do jiného příběhu — příběh v příběhu.",
+  "lyrický subjekt":"Mluvčí v básni — nemusí být totožný s autorem.",
+  "apostrofa":"Oslovení nepřítomné osoby, věci nebo abstrakce.",
+  "anafor":"Opakování stejného slova na začátku po sobě jdoucích veršů nebo vět.",
+  "oxymorón":"Spojení dvou zdánlivě protikladných slov — 'živá smrt'.",
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DATA — 105 knih s kompletními rozbory
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const BOOKS=[
+{id:1,autor:"Petiška, Eduard",nazev:"Staré řecké báje a pověsti",rok:"1958 (antika)",zanr:"Próza / mytologie",obdobi:"do18",
+ info:"Převyprávění antických mýtů pro české čtenáře. Eduard Petiška (1924–1987) byl český spisovatel a překladatel.",
+ autor_info:"Eduard Petiška byl český spisovatel, básník a překladatel. Věnoval se zejména literatuře pro děti a mládež a převyprávění světových mýtů a legend.",
+ dej:"Soubor příběhů o řeckých bozích (Zeus, Héra, Athéna, Apollón) a hrdinech (Héraklés, Perseus, Odysseus, Orfeus). Každá báje zachycuje jeden příběh — vznik světa, činy hrdinů, lásky bohů, trestání smrtelníků.",
+ postavy:"Zeus — vládce bohů, Héraklés — hrdina konající dvanáct prací, Perseus — sráží Gorgonu, Orfeus — hudebník sestupující do podsvětí, Prométheus — přináší lidem oheň.",
+ temata:"Vztah člověka a bohů. Osud, který nelze změnit. Hrdinství a odvaha. Trest za pýchu (hybris). Láska překonávající smrt.",
+ jazyk:"Přístupná moderní próza. Petiška zachovává dramatičnost předloh a přidává poetický jazyk. Výrazný popis přírody a prostředí.",
+ kontext:"Antická mytologie — základ evropské kultury. Petiškovo převyprávění patří k nejznámějším českým adaptacím. Dílo přibližuje antiku mladým čtenářům.",
+ pojmy:["mytologie","epika","próza","kompozice","archetypální postava"]},
+
+{id:2,autor:"Shakespeare, William",nazev:"Hamlet",rok:"cca 1600–1601",zanr:"Tragédie",obdobi:"do18",
+ info:"Renesanční tragédie — jedno z nejvýznamnějších divadelních děl světové literatury.",
+ autor_info:"William Shakespeare (1564–1616) — anglický dramatik a básník, zvaný 'největší spisovatel anglického jazyka'. Napsal 37 her a 154 sonetů. Působil v londýnském divadle Globe.",
+ dej:"Dánský princ Hamlet se dozví od ducha svého otce, že ho zavraždil vlastní bratr Claudius, který se oženil s Hamletovou matkou Gertrudou a ujal se trůnu. Hamlet váhá s pomstou, předstírá šílenství. V závěru umírají všichni hlavní hrdinové.",
+ postavy:"Hamlet — princ, intelektuál paralyzovaný pochybnostmi. Claudius — záporný král, vrah. Ofélie — Hamletova láska, zešílí a utopí se. Horatio — Hamletův věrný přítel. Gertruda — matka.",
+ temata:"Pomsta vs. svědomí. Zdání a skutečnost. Zrada a loajalita. Smrt a smysl existence. Korupce moci.",
+ jazyk:"Blankvers (nerýmovaný jambický pentametr). Slavné monology — 'Být či nebýt'. Bohatá obraznost, hry slov.",
+ kontext:"Renesanční Anglie, elžbětinské divadlo. Hamlet je prototypem moderního myšlení hrdiny — váhajícího, sebereflexivního.",
+ pojmy:["tragédie","drama","konflikt","monolog","renesance","katarze","er-forma"]},
+
+{id:3,autor:"Shakespeare, William",nazev:"Mnoho povyku pro nic",rok:"cca 1598–1599",zanr:"Komedie",obdobi:"do18",
+ info:"Veselá komedie plná nedorozumění, intrik a šťastného konce.",
+ autor_info:"William Shakespeare (1564–1616) — anglický dramatik a básník. Viz Hamlet.",
+ dej:"V Messině se Hero a Claudio mají vzít, ale záporák Don John zinscenuje Herino 'nevěrnictví'. Claudio ji před oltářem odmítne a Hero 'umře'. Mezitím se Benedick a Beatrice — věční hádači — neočekávaně zamilují.",
+ postavy:"Benedick — vtipný, odmítá lásku. Beatrice — samostatná, ostrý jazyk. Hero — tichá, nevinná. Claudio — zamilovaný, lehkověrný. Don John — intrikán.",
+ temata:"Láska a předsudky. Čest a pověst. Zdání vs. skutečnost. Moc řeči a pomluvy.",
+ jazyk:"Próza i verš. Rychlé slovní souboje (battle of wits). Ironie a humor.",
+ kontext:"Renesanční Itálie jako kulisa. Komedie plná nedorozumění — shakespearovský pattern.",
+ pojmy:["komedie","drama","ironie","dialog","renesance"]},
+
+{id:4,autor:"Shakespeare, William",nazev:"Romeo a Julie",rok:"cca 1594–1596",zanr:"Tragédie",obdobi:"do18",
+ info:"Nejslavnější milostná tragédie světové literatury.",
+ autor_info:"William Shakespeare (1564–1616) — anglický dramatik a básník. Viz Hamlet.",
+ dej:"V Veroně se Romeo z rodu Montekových zamiluje do Julie z nepřátelského rodu Kapuletů. Tajně se vezmou. Romeo zabije Tybalta a je vyhoštěn. Julie vypije uspávací nápoj, Romeo ji pokládá za mrtvou a zabije se. Julie po probuzení také zemře.",
+ postavy:"Romeo — impulzivní, romantický. Julie — odhodlaná, zralá. Bratr Vavřinec — zprostředkovatel, vymyslí plán. Chůva — komická postava, Juliina důvěrnice. Tybalt — agresivní bratranec.",
+ temata:"Láska jako osud. Nenávist rodin ničí nevinné. Svoboda vs. rodinná povinnost. Smrt jako jediné spojení.",
+ jazyk:"Blankvers, sonety v dialozích. Bohaté metafory světla/tmy. Rychlé tempo.",
+ kontext:"Renesance, Itálie. Předloha v italské novele. Jeden z nejhranějších shakespearovských kusů.",
+ pojmy:["tragédie","drama","konflikt","metafora","sonet","katarze"]},
+
+{id:5,autor:"Moliere",nazev:"Lakomec",rok:"1668",zanr:"Komedie",obdobi:"do18",
+ info:"Satirická komedie francouzského klasicismu o lakomství jako hlavním neřesti.",
+ autor_info:"Molière (1622–1673), vlastním jménem Jean-Baptiste Poquelin — francouzský dramatik a herec. Psal satirické komedie pro dvůr Ludvíka XIV. Největší představitel francouzské klasicistní komedie.",
+ dej:"Stařec Harpagon je posedlý penězi — schoval pokladnici se zlatem na zahradě. Odmítá synovi Kleantovi dát peníze na dceru svého soka Anzelma, sám chce Kleantovu milou Marii. Dcera Eliška má být provdána za bohatého starce. Na konci vyjde najevo, že Anzelm je otec Marie i Valeria — vše se šťastně vyřeší.",
+ postavy:"Harpagon — lakomec, posedlý zlatem. Kleantes — syn, vzdoruje otci. Eliška — dcera. Valerio — Elišky milý. Marie — Kleantova milá. La Flèche — sluha.",
+ temata:"Lakomství ničí mezilidské vztahy. Peníze vs. city. Generační konflikt. Satira měšťanské chamtivosti.",
+ jazyk:"Klasicistní pravidla (tři jednoty). Próza. Komické situace a slovní humor. Komedie charakterů.",
+ kontext:"Francouzský klasicismus 17. stol. Inspirováno Plautovou Komedií o hrnci. Satirizuje dobovou společnost.",
+ pojmy:["komedie","satira","klasicismus","dialog","kompozice","konflikt"]},
+
+{id:6,autor:"Saavedra, Miguel de Cervantes",nazev:"Důmyslný rytíř Don Quijote de la Mancha",rok:"1605/1615",zanr:"Roman / parodie",obdobi:"do18",
+ info:"Jeden z prvních moderních románů a vrchol španělské literatury zlatého věku.",
+ autor_info:"Miguel de Cervantes (1547–1616) — španělský spisovatel. Vedl dobrodružný život, byl vojákem, otrokem v Alžíru, výběrčím daní. Don Quijote je jeho hlavní dílo.",
+ dej:"Zchudlý šlechtic Alonso Quijana se přečte rytířskými romány a zblázní se — stane se 'rytířem' Don Quijotem. S realistickým sluhou Sancho Panzou táhnou světem. Don Quijote bojuje s větrnými mlýny (považuje je za obry), zachraňuje uvězněné (trestance), miluje smyšlenou Dulcineu. Nakonec se uzdraví a zemře.",
+ postavy:"Don Quijote — idealista, quijotismus (boj za iluze). Sancho Panza — praktický sluha. Dulcinea — smyšlená dáma.",
+ temata:"Idealismus vs. realismus. Iluze a skutečnost. Satira na rytířské romány. Přátelství. Šílenství nebo moudrost?",
+ jazyk:"Rámcová kompozice. Er-forma. Kontrastní dvojice postav. Parodie rytířského stylu.",
+ kontext:"Španělský zlatý věk, renesance. Paroduje módní rytířské romány. Považován za první moderní román.",
+ pojmy:["román","parodie","satira","rámcová kompozice","er-forma","idealismus"]},
+
+{id:7,autor:"Defoe, Daniel",nazev:"Robinson Crusoe",rok:"1719",zanr:"Dobrodružný román",obdobi:"do18",
+ info:"Zakladatelský text dobrodružné literatury a první moderní anglický román.",
+ autor_info:"Daniel Defoe (1660–1731) — anglický spisovatel a novinář. Před literaturou se věnoval obchodu a politice. Robinson Crusoe přinesl mu slávu.",
+ dej:"Anglický dobrodruh Robinson Crusoe ztroskotá na opuštěném ostrově u Venezuely. 28 let přežívá sám — staví příbytek, pěstuje obilí, chová kozy. Zachrání domorodce (Pátek) před kanibaly. Nakonec se vrátí do Anglie.",
+ postavy:"Robinson Crusoe — praktický, sebedisciplinovaný, postupně nalézá víru v Boha. Pátek — věrný společník, symbolizuje 'ušlechtilého divocha'.",
+ temata:"Přežití a vynalézavost. Civilizace vs. příroda. Kolonialismus a rasismus (Pátek jako podřízený). Víra a Boží prozřetelnost.",
+ jazyk:"Ich-forma. Deníkový styl — detailní popis každodennosti. Realistický přístup.",
+ kontext:"Anglické osvícenství. Inspirováno příběhem Alexandera Selkirka. Zakladatel moderního románu.",
+ pojmy:["román","ich-forma","realismus","osvícenství","kompozice"]},
+
+{id:8,autor:"Goldoni, Carlo",nazev:"Sluha dvou pánů",rok:"1746",zanr:"Komedie",obdobi:"do18",
+ info:"Vrcholné dílo italské commedia dell'arte v literární podobě.",
+ autor_info:"Carlo Goldoni (1707–1793) — italský dramatik, reformátor divadla. Přetvořil improvizovanou commedia dell'arte v psané literární drama.",
+ dej:"Hladový sluha Truffaldino tajně slouží dvěma pánům najednou — Federigovi a Beatrici (přestrojené za muže). Neustálé záměny dopisů, jídla a peněz vedou ke komickým situacím. Na konci se vše vyjasnění.",
+ postavy:"Truffaldino — chytrý i hloupý sluha (arlekýn). Beatrice — přestrojená žena. Federigo — jeden z pánů. Smeraldina — komorná.",
+ temata:"Lest a vynalézavost chudého. Chaos z lhaní. Sociální nerovnost. Láska přemůže vše.",
+ jazyk:"Italský dialekt Benátek. Rychlé dialogy, fraškovité situace. Commedia dell'arte typy.",
+ kontext:"Italské osvícenství. Goldoni reformoval divadlo — nahradil improvizaci psaným textem. Dodnes jeden z nejhranějších kusů.",
+ pojmy:["komedie","drama","dialog","osvícenství","satira"]},
+
+{id:9,autor:"Poe, Edgar Allan",nazev:"Černý kocour",rok:"1843",zanr:"Povídka / horor",obdobi:"19",
+ info:"Psychologická hororová povídka o vině, šílenství a nevyhnutelném trestu.",
+ autor_info:"Edgar Allan Poe (1809–1849) — americký spisovatel, básník a literární kritik. Zakladatel detektivní povídky a moderního hororu. Vedl tragický život — alkoholismus, smrt ženy. Zemřel za záhadných okolností.",
+ dej:"Vypravěč, dříve milovník zvířat, propadne alkoholu. Týrá kočku Pluto, vyhodí mu oko, nakonec ho oběsí. Dostane nového kocoura — a začne ho nenávidět. Zabije ženu sekerou, zazdědo sklepa. Policie najde za zdí mňoukání — kocour byl zazděn se mrtvolou.",
+ postavy:"Vypravěč — nespolehlivý, šílí alkoholem a vinou. Pluto — první kocour. Druhý kocour — symbol viny.",
+ temata:"Vina a trest. Dvojnictví (muž a kocour). Zánik lidskosti vlivem alkoholu. Nevyhnutelnost trestu.",
+ jazyk:"Ich-forma — nespolehlivý vypravěč. Napínavé gradující tempo. Detailní psychologický popis.",
+ kontext:"Americká romantická literatura 19. stol. Poe zakladatel psychologického hororu.",
+ pojmy:["povídka","ich-forma","romantismus","horor","psychologický_realismus","gradace"]},
+
+{id:10,autor:"Poe, Edgar Allan",nazev:"Havran",rok:"1845",zanr:"Báseň",obdobi:"19",
+ info:"Nejslavnější americká báseň 19. století — symbol nevyhnutelné ztráty.",
+ autor_info:"Edgar Allan Poe (1809–1849) — americký spisovatel a básník. Viz Černý kocour.",
+ dej:"V noci přijde ke smutnému básníkovi havran a na každou otázku odpovídá jen 'Nevermore' (Již nikdy). Básník se ptá na svou zesnulou milou Lenoru — stále jen 'Nevermore'. Havran se neodejde a básník propadá šílenství.",
+ postavy:"Básník — smutný, truchlí po Lenoře. Havran — symbol nevyhnutelné ztráty, posla osudu.",
+ temata:"Smutek a ztráta. Šílenství z truchlení. Nevyhnutelnost (nevermore). Posmrtný život.",
+ jazyk:"Pravidelné rýmové schéma ABCBBB. Refrén 'Nevermore'. Zvukomalba, aliterace. Hudebnost.",
+ kontext:"Poe teorii básně popsal v eseji 'Filosofie kompozice'. Romantismus, gotická atmosféra.",
+ pojmy:["lyrika","balada","romantismus","refrén","symbol","aliterace","strofa"]},
+
+{id:11,autor:"Poe, Edgar Allan",nazev:"Jáma a kyvadlo",rok:"1842",zanr:"Povídka / horor",obdobi:"19",
+ info:"Psychologická povídka o teroru španělské inkvizice.",
+ autor_info:"Edgar Allan Poe (1809–1849). Viz Černý kocour.",
+ dej:"Vězněný muž španělské inkvizicí probouzí ve tmě. Takřem spadne do hluboké jámy. Přivážou ho — nad ním se kýve obří kyvadlo s čepelí. V poslední chvíli unikne. Stěny se rozžhaví a tlačí ho do jámy. Zachrání ho generál francouzské armády.",
+ postavy:"Anonymní vypravěč — vězeň španělské inkvizice. Inkvizitoré — anonymní moc.",
+ temata:"Strach a psychická torture. Moc a bezmoc. Survival. Čas jako mučidlo.",
+ jazyk:"Ich-forma, vnitřní monolog. Detailní popis fyzického a psychického utrpení. Gradace napětí.",
+ kontext:"Španělská inkvizice jako symbol tyranie. Poe mistr atmosférické povídky.",
+ pojmy:["povídka","ich-forma","horor","gradace","monolog","atmosféra"]},
+
+{id:12,autor:"Austenová, Jane",nazev:"Pýcha a předsudek",rok:"1813",zanr:"Roman",obdobi:"19",
+ info:"Jeden z nejvýznamnějších a nejoblíbenějších románů anglické literatury.",
+ autor_info:"Jane Austen (1775–1817) — anglická spisovatelka. Psala o životě venkovské šlechty. Díla publikovala anonymně. Dnes ikon feminismu a anglické literatury.",
+ dej:"Rodina Bennetových má pět dcer — matka je chce provdat. Elizabeth se setká s bohatým Darcym — vzájemně se popudí. Darcy je pyšný, Elizabeth plná předsudků. Postupně si uvědomí své chyby a zamilují se.",
+ postavy:"Elizabeth Bennet — vtipná, nezávislá, inteligentní. Darcy — pyšný, ale čestný. Jane — starší sestra. Bingley — Darcyho přítel. Wickham — podvodník.",
+ temata:"Pýcha a předsudek jako překážky lásky. Postavení ženy ve společnosti. Manželství z lásky vs. z rozumu. Třídní rozdíly.",
+ jazyk:"Er-forma, volná nepřímá řeč. Ironie a vtip. Detailní psychologická kresba postav.",
+ kontext:"Anglie přelomu 18./19. stol. Austen kritizuje instituci manželství a společenské konvence.",
+ pojmy:["román","er-forma","ironie","realismus","psychologická_kresba","konflikt"]},
+
+{id:13,autor:"Dumas, Alexandre",nazev:"Hrabě Monte Christo",rok:"1844",zanr:"Dobrodružný román",obdobi:"19",
+ info:"Klasický příběh o pomstě a spravedlnosti.",
+ autor_info:"Alexandre Dumas (1802–1870) — francouzský romantický spisovatel. Psal historické romány a dobrodružné příběhy ve spolupráci s kolektivem pomocníků.",
+ dej:"Lodní důstojník Edmond Dantès je křivě obviněn a uvězněn v pevnosti Château d'If. Po letech útěku nalezne poklad na ostrově Monte Cristo. Jako bohatý hrabě se vrátí a metodicky pomstí všem svým nepřátelům.",
+ postavy:"Edmond Dantès / Hrabě Monte Cristo — pomstitel. Fernand — zrádce, přítel. Danglars — závistivý kolega. Abbé Faria — vězňův učitel.",
+ temata:"Pomsta a spravedlnost. Transformace identity. Bohatství a moc. Zrada přátelství.",
+ jazyk:"Dramatické tempo, četné zápletky. Er-forma. Romantický styl.",
+ kontext:"Francouzský romantismus. Historický román. Jeden z nejpřeloženějších románů světa.",
+ pojmy:["román","romantismus","er-forma","konflikt","kompozice"]},
+
+{id:14,autor:"Dumas, Alexandre",nazev:"Tři mušketýři",rok:"1844",zanr:"Historický dobrodružný román",obdobi:"19",
+ info:"Nejslavnější historický dobrodružný román — 'Jeden za všechny, všichni za jednoho'.",
+ autor_info:"Alexandre Dumas (1802–1870). Viz Hrabě Monte Cristo.",
+ dej:"Mladý d'Artagnan přijíždí do Paříže a spřátelí se s mušketýry Athosem, Porthosem a Aramisem. Bojují proti intrikám kardinála Richelieu a záporné milady de Winter. Zachrání čest královny.",
+ postavy:"D'Artagnan — odvážný mladík. Athos — tajemný šlechtic. Porthos — marný silák. Aramis — romantický klerik. Milady de Winter — záporák.",
+ temata:"Přátelství a loajalita. Čest a odvaha. Intriky u dvora. Dobrodružství.",
+ jazyk:"Dramatické tempo, četné dialogy. Er-forma. Historická kulisa Francie 17. stol.",
+ kontext:"Francouzský romantismus. Historické kulisy dávají živý obraz 17. stol.",
+ pojmy:["román","romantismus","er-forma","dialog","historický_román"]},
+
+{id:15,autor:"Hugo, Victor",nazev:"Bídníci",rok:"1862",zanr:"Společenský román",obdobi:"19",
+ info:"Nejambicióznější francouzský román 19. stol. — epopeja o vykoupení.",
+ autor_info:"Victor Hugo (1802–1885) — největší francouzský romantický básník a prozaik. Bojoval za spravedlnost a svobodu. Byl exulant 19 let.",
+ dej:"Jean Valjean strávil 19 let na galejích za ukradený chléb. Po propuštění ho změní biskup. Stane se starostou, zachrání Fantine, adoptuje její dceru Cosette. Policista Javert ho neúnavně pronásleduje. Cosette se provdá za Mariuse. Valjean zemře v pokoji.",
+ postavy:"Jean Valjean — vykoupený zloděj, morální hrdina. Javert — fanatický policista. Cosette — adoptivní dcera. Fantine — nešťastná matka. Marius — revolucionář.",
+ temata:"Vykoupení a odpuštění. Sociální nespravedlnost. Zákon vs. morálka. Lidská důstojnost.",
+ jazyk:"Epický rozsah. Er-forma. Lyrické pasáže, historické odbočky. Silná rétorika.",
+ kontext:"Francie 19. stol. — revoluční pohnutí, chudoba. Hugo kritizuje systém, který trestá chudé.",
+ pojmy:["román","romantismus","er-forma","satira","společenský_román","leitmotiv"]},
+
+{id:16,autor:"Puškin, Alexandr Sergejevič",nazev:"Evžen Oněgin",rok:"1823–1831",zanr:"Veršovaný román",obdobi:"19",
+ info:"Vrcholné dílo ruské literatury — 'encyklopedie ruského života'.",
+ autor_info:"Alexandr Sergejevič Puškin (1799–1837) — největší ruský básník. Tvořil v době romantismu. Zemřel v souboji.",
+ dej:"Módní petrohradský dandy Oněgin zdědí statek. Přátelí se s básníkem Lenským. Tatjana se do Oněgina zamiluje a napíše mu dopis. Oněgin ji odmítne. Zabije Lenského v souboji. Po letech potká Tatjanu — teď vdanou kněžnu. Sám se zamiluje, ale ona ho odmítne.",
+ postavy:"Oněgin — dandy, nuda, existenciální prázdnota. Tatjana — romantická, věrná. Lenský — básník, idealista.",
+ temata:"Byronský hrdina (přebytečný člověk). Láska přichází pozdě. Společenské konvence vs. city. Ruský charakter.",
+ jazyk:"Oněginská strofa (vlastní rýmové schéma). Lyrika i epika. Ironický vypravěč.",
+ kontext:"Ruský romantismus. Puškin vytvořil základ ruského literárního jazyka.",
+ pojmy:["veršovaný_román","romantismus","lyrika","epika","ironie","strofa","byronský_hrdina"]},
+
+{id:17,autor:"Brontëová, Emily",nazev:"Na Větrné hůrce",rok:"1847",zanr:"Gotický román",obdobi:"19",
+ info:"Temný gotický román o lásce, pomstě a přirozenosti.",
+ autor_info:"Emily Brontë (1818–1848) — anglická spisovatelka. Napsala pouze tento román a sbírku básní. Zemřela mladá na tuberkulózu.",
+ dej:"Nalezený chlapec Heathcliff vyrůstá na statku Větrná hůrka. Zamiluje se do Catherine. Ona si ale vezme bohatého Edgara. Heathcliff odejde, vrátí se bohatý a mstí se. Catherine zemře při porodu. Heathcliff se promění v nestvůru pomsty.",
+ postavy:"Heathcliff — divoký, posedlý láskou a pomstou. Catherine — rozpolcená mezi citem a společností. Edgar — kultivovaný manžel.",
+ temata:"Láska silnější než smrt. Pomsta ničí mstitele. Třídní nerovnost. Příroda jako symbol vášně.",
+ jazyk:"Rámcová kompozice (Nelly vypráví). Er-forma. Bouřlivá příroda jako obraz duše postav.",
+ kontext:"Anglický gotický romantismus. Feministické čtení — Catherine jako symbol ženské touhy po svobodě.",
+ pojmy:["román","romantismus","rámcová kompozice","er-forma","gotika","symbol"]},
+
+{id:18,autor:"Alcottová, Louisa May",nazev:"Malé ženy",rok:"1868",zanr:"Roman",obdobi:"19",
+ info:"Klasický americký román o čtyřech sestrách dospívajících za občanské války.",
+ autor_info:"Louisa May Alcott (1832–1888) — americká spisovatelka. Román je z velké části autobiografický.",
+ dej:"Čtyři sestry Marchovy — Meg, Jo, Beth a Amy — dospívají za americké občanské války, kdy je otec v armádě. Jo chce být spisovatelkou. Beth onemocní a zemře. Meg se provdá. Amy cestuje do Evropy. Jo nakonec najde lásku v profesoru Bhaerovi.",
+ postavy:"Jo — rebelka, budoucí spisovatelka. Meg — praktická, chce rodinu. Beth — tichá, hudebně nadaná. Amy — umělkyně, ambiciózní. Laurie — soused.",
+ temata:"Dospívání a identita. Ženská nezávislost. Rodina jako základ. Oběť a sebeobětování.",
+ jazyk:"Er-forma. Teplý, přátelský styl. Detailní kresba vztahů.",
+ kontext:"Amerika za občanské války. Alcott bojovala za práva žen.",
+ pojmy:["román","er-forma","realismus","kompozice","autobiografismus"]},
+
+{id:19,autor:"Mácha, Karel Hynek",nazev:"Máj",rok:"1836",zanr:"Lyrickoepická báseň",obdobi:"19",
+ info:"Nejslavnější česká básnická skladba — vrchol českého romantismu.",
+ autor_info:"Karel Hynek Mácha (1810–1836) — český básník, zakladatel českého romantismu. Zemřel velmi mladý (26 let). Za života byl málo doceněn.",
+ dej:"Vilém, vůdce loupežníků, zabije svůdce své milé Jarmily — nevědomky je to jeho vlastní otec. Je odsouzen k smrti. Jarmila se utopí. Vilém před smrtí filozofuje o nicotě existence. Lyrický subjekt se vrátí na místo po letech.",
+ postavy:"Vilém — romantický vrah, nešťastný osud. Jarmila — milá, utopí se. Lyrický subjekt — básník, vrací se na místo.",
+ temata:"Příroda jako symbol. Láska a smrt. Existenciální prázdnota. Nicota a zánik. Čas.",
+ jazyk:"Daktylotrochejský rytmus. Bohaté lyrické popisy přírody. Romantická obraznost. Slovní hry.",
+ kontext:"Česky romantismus. Mácha se inspiroval Byronem. Máj je zakladatelské dílo moderní české literatury.",
+ pojmy:["lyrickoepická báseň","romantismus","lyrika","epika","symbol","strofa","existencialismus","lyrický subjekt"]},
+
+{id:20,autor:"Erben, Karel Jaromír",nazev:"Kytice",rok:"1853",zanr:"Básnická sbírka / balady",obdobi:"19",
+ info:"Vrchol českého básnického romantismu — sbírka mravoučných balad.",
+ autor_info:"Karel Jaromír Erben (1811–1870) — český básník, folklorista a archivář. Sbíral lidové písně a pohádky. Kytice je jeho jediná básnická sbírka.",
+ dej:"13 balad inspirovaných folklórem. Každá zachycuje porušení přírodního nebo mravního řádu a jeho trest: Polednice (matka přivolá démona), Vodník (dcera zemře), Záhořovo lože (hřích a vykoupení), Svatební košile (mrtvý ženich), Zlatý kolovrat (vražda a trest).",
+ postavy:"Různé — většinou anonymní matky, dcery, démoni. Archetypy — matka, dítě, démon.",
+ temata:"Porušení řádu přivolá trest. Mateřská láska. Víra v nadpřirozeno. Vina a trest. Osud.",
+ jazyk:"Přísný metrický řád. Refrény. Dramatické dialogy. Folklorní prvky. Balada — tragický konec.",
+ kontext:"Národní obrození. Erben navazuje na lidovou slovesnost. Sbírka je základem české literatury.",
+ pojmy:["balada","lyrika","romantismus","folklór","refrén","strofa","symbol","archetypální postava"]},
+
+{id:21,autor:"Němcová, Božena",nazev:"V zámku a podzámčí",rok:"1856",zanr:"Povídka",obdobi:"19",
+ info:"Sociální povídka kontrastující život chudých a bohatých.",
+ autor_info:"Božena Němcová (1820–1862) — největší česká prozaička 19. stol. Vedla složitý osobní život. Babička a Pohádky jsou její nejznámější díla.",
+ dej:"Kontrastní obraz: na zámku žije bohatá rodina v přepychu a nudě, v podzámčí chudá rodina v bídě ale s vnitřním bohatstvím a lidskostí. Panstvo se zabývá prázdnými společenskými hrami, chudí pracují a mají čisté hodnoty.",
+ postavy:"Bohatá šlechtická rodina — symbolizuje prázdnotu. Chudá rodina — symbolizuje pravé hodnoty.",
+ temata:"Sociální nerovnost. Pravé hodnoty vs. materialismus. Kritika aristokracie. Lidová prostota.",
+ jazyk:"Kontrastní kompozice. Detailní realismus. Er-forma.",
+ kontext:"Česká literatura 19. stol. Němcová kritizuje společenské nerovnosti.",
+ pojmy:["povídka","realismus","er-forma","sociální_kritika","kontrast","kompozice"]},
+
+{id:22,autor:"Tyl, Josef Kajetán",nazev:"Strakonický dudák",rok:"1847",zanr:"Pohádková hra",obdobi:"19",
+ info:"Nejpopulárnější česká pohádková divadelní hra.",
+ autor_info:"Josef Kajetán Tyl (1808–1856) — český dramatik, prozaik a divadelní ředitel. Autor textu české hymny 'Kde domov můj?'",
+ dej:"Mladý dudák Švanda opustí svou milou Dorotku a vydá se za slávou do světa. Cizí svět ho zklamá — cizinci mu vezmou kouzelné dudy. Vrátí se domů, kde ho čeká věrná Dorotka.",
+ postavy:"Švanda — naivní, touží po slávě. Dorotka — věrná, trpělivá. Kalafuna — komická postava.",
+ temata:"Domov a vlast jako nejvyšší hodnota. Marné hledání štěstí v cizině. Věrnost a přátelství.",
+ jazyk:"Pohádkové prvky s reálným základem. Dialogy v lidovém jazyce. Písně.",
+ kontext:"Národní obrození. Tyl zdůrazňuje vlastenectví a českou lidovou tradici.",
+ pojmy:["drama","pohádka","národní_obrození","dialog","symbol"]},
+
+{id:23,autor:"Havlíček Borovský, Karel",nazev:"Tyrolské elegie",rok:"1852",zanr:"Satirická báseň",obdobi:"19",
+ info:"Politická satira na bachovský absolutismus — psáno ve vyhnanství.",
+ autor_info:"Karel Havlíček Borovský (1821–1856) — český novinář, básník a satirik. Průkopník české žurnalistiky. Byl deportován do tyrolského Brixenu (1851–1855). Zemřel krátce po návratu.",
+ dej:"Havlíček líčí svůj násilný odvoz do Tyrol — četníci přijdou v noci, odvezou ho od rodiny. Popisuje cestu, cizí prostředí. Ironicky děkuje za 'dovolenou'. Kritika rakouské policejní tyranie.",
+ postavy:"Lyrický subjekt — básník sám. Četníci — symbol útlaku. Rodina — to, co ztratil.",
+ temata:"Politická svoboda. Odpor vůči tyranii. Ztráta vlasti a rodiny. Ironie jako zbraň.",
+ jazyk:"Epická satira. Ironie a sarkasmus. Přehledný veršový styl. Odkaz na antiku.",
+ kontext:"Bachovo absolutistické Rakousko 50. let 19. stol. Havlíček zakladatel české politické satiry.",
+ pojmy:["satira","elegie","lyrika","ironie","politická_literatura","lyrický subjekt"]},
+
+{id:24,autor:"Havlíček Borovský, Karel",nazev:"Král Lávra",rok:"1854",zanr:"Satirická báseň / bajka",obdobi:"19",
+ info:"Satirická bajka o mocenském tajemství — král má oslí uši.",
+ autor_info:"Karel Havlíček Borovský (1821–1856). Viz Tyrolské elegie.",
+ dej:"Irský král Lávra má oslí uši — tajemství, které chrání za cenu životů holičů. Jeden holič dostane povolení říci tajemství vrbě. Vrba je poražena, muzikant udělá z ní housle — na prvním vystoupení zahrají 'Král Lávra má oslí uši'. Tajemství vyjde najevo.",
+ postavy:"Král Lávra — mocný, ale směšný. Holič — tajemství ho tíží. Muzikant — nevinný odhalovatel.",
+ temata:"Tyranská moc má slabiny. Pravda vyjde najevo. Satira na mocenskou aroganci.",
+ jazyk:"Jednoduchý, rytmický verš. Humorný tón. Ironie. Bajka.",
+ kontext:"Politická alegorie na absolutistické Rakousko. Inspirováno irskou lidovou pohádkou.",
+ pojmy:["satira","bajka","alegorie","ironie","symbol","lyrika"]},
+
+{id:25,autor:"Tolstoj, Lev Nikolajevič",nazev:"Anna Karenina",rok:"1877",zanr:"Realistický román",obdobi:"19",
+ info:"Jeden z nejdokonalejších románů světové literatury.",
+ autor_info:"Lev Nikolajevič Tolstoj (1828–1910) — největší ruský prozaik. Šlechtic, který se vzdal majetku. Napsal Vojnu a mír, Annu Kareninu, Vzkříšení. Filozoficky hledal smysl života.",
+ dej:"Dvě paralelní dějové linie: Anna Karenina opustí manžela pro důstojníka Vronského — společnost ji zavrhne, nakonec skočí pod vlak. Levin — hledá smysl v práci na statku a lásce k Kitty — nakonec nachází štěstí.",
+ postavy:"Anna — krásná, vášnivá, zničena společenskými konvencemi. Vronský — elegantní, ale povrchní. Karenin — chladný manžel. Levin — alter ego Tolstého.",
+ temata:"Společenské konvence vs. osobní štěstí. Smysl života. Láska a manželství. Vykoupení prací.",
+ jazyk:"Er-forma. Psychologický realismus — proud vědomí. Detailní popisy společnosti. Paralelní kompozice.",
+ kontext:"Ruský realismus 19. stol. Tolstoj kritizuje pokrytectví aristokratické společnosti.",
+ pojmy:["román","realismus","er-forma","proud vědomí","kompozice","psychologická_kresba","symbol"]},
+
+{id:26,autor:"Dostojevskij, Fjodor Michajlovič",nazev:"Bílé noci",rok:"1848",zanr:"Sentimentální román / novela",obdobi:"19",
+ info:"Romantická novela o samotě a neopětované lásce.",
+ autor_info:"Fjodor Michajlovič Dostojevskij (1821–1881) — jeden z největších světových spisovatelů. Byl odsouzen k smrti, omilostněn, strávil roky na Sibiři. Psal o lidské psyche a vině.",
+ dej:"V době bílých nocí v Petrohradě se samotář setkává každou noc s Nastenkou. Sdílejí si sny. Nastenka čeká na milého, který se nevrátí. Vypravěč se do ní zamiluje. Nakonec se její milý vrátí a ona odejde s ním. Vypravěč zůstane sám.",
+ postavy:"Mečtatel — snivý samotář. Nastenka — živá, milá. Nájemník — Nastenkina láska.",
+ temata:"Samota ve velkém městě. Neopětovaná láska. Sen vs. realita. Krátké štěstí.",
+ jazyk:"Ich-forma. Lyrický, poetický styl. Petrohrad jako symbol.",
+ kontext:"Ruský romantismus/realismus. Raná Dostojevského tvorba — ještě optimistická.",
+ pojmy:["novela","ich-forma","romantismus","lyrický subjekt","symbol","atmosféra"]},
+
+{id:27,autor:"Čechov, Anton Pavlovič",nazev:"Racek",rok:"1896",zanr:"Drama / komedie",obdobi:"19",
+ info:"Jedno z nejvýznamnějších dramat světové literatury — 'divadlo nálad'.",
+ autor_info:"Anton Pavlovič Čechov (1860–1904) — ruský dramatik a povídkář. Lékař. Zakladatel moderního psychologického dramatu. Hlavní díla: Racek, Tři sestry, Višňový sad, Strýček Váňa.",
+ dej:"Na venkovském statku se setkávají lidé různých ambicí a zklamání. Nina chce být herečkou. Konstantin ji miluje, je nespokojený spisovatel. Arkadina (slavná herečka, Konstantinova matka) miluje Trigorina (slavný spisovatel). Trigorin Nina zláká a pak opustí. Nina se stane herečkou, ale neúspěšnou. Konstantin se zastřelí.",
+ postavy:"Konstantin — frustrovaný dramatik. Nina — naivní, pak zralá. Trigorin — slavný, ale prázdný. Arkadina — egocentrická.",
+ temata:"Marné ambice a umění. Zničené iluze. Neschopnost komunikace. Čas plyne zbytečně.",
+ jazyk:"Podtextová komunikace — co se neříká. Symbolismus — racek. Nepřímá akce.",
+ kontext:"Ruský realismus/symbolismus. Čechov přináší novou dramatiku — bez melodramatu.",
+ pojmy:["drama","symbolismus","realismus","symbol","podtext","konflikt","dialog"]},
+
+{id:28,autor:"Gogol, Nikolaj Vasiljevič",nazev:"Revizor",rok:"1836",zanr:"Satira / komedie",obdobi:"19",
+ info:"Nejslavnější ruská satirická komedie.",
+ autor_info:"Nikolaj Vasiljevič Gogol (1809–1852) — ruský spisovatel ukrajinského původu. Satirizoval ruskou byrokracii a maloměšťáctví.",
+ dej:"Do ruského maloměsta přijede mladý Chlestakov — cestovatel bez peněz. Starostové omylem pokládají za revizora z Petrohradu. Všichni mu nosí úplatky. Chlestakov si to užívá. Nakonec odejde — a přijede zpráva, že skutečný revizor přijede.",
+ postavy:"Chlestakov — frivolní, bezstarostný. Starosta — zkorumpovaný. Ostatní úředníci — všichni korupční.",
+ temata:"Korupce a úplatky v Rusku. Strach z moci. Hloupá pýcha. Sebeklamání.",
+ jazyk:"Satirická komedie. Rychlé dialogy. Němá scéna na konci. Groteska.",
+ kontext:"Ruská byrokracie 19. stol. Gogol byl přítelem Puškina, který mu nápad dal.",
+ pojmy:["satira","komedie","drama","dialog","groteska","ironie"]},
+
+{id:29,autor:"Dickens, Charles",nazev:"Oliver Twist",rok:"1837–1839",zanr:"Sociální román",obdobi:"19",
+ info:"Slavný sociální román o sirotku v londýnském podsvětí.",
+ autor_info:"Charles Dickens (1812–1870) — největší anglický spisovatel 19. stol. Sám prožil dětskou chudobu. Kritizoval sociální nerovnosti.",
+ dej:"Sirotek Oliver Twist utíká z chudobince do Londýna. Dostane se do gangu kapsářů pod vedením Fagina. Setkává se s dobrými lidmi (pan Brownlow). Záporák Bill Sikes ho chce využít ke zločinu. Na konci se ukáže, že Oliver je dědic šlechtice.",
+ postavy:"Oliver — nevinné dítě. Fagin — vůdce kapsářů. Bill Sikes — brutální zločinec. Artful Dodger — mazaný kapsář.",
+ temata:"Sociální kritika — chudoba a dětská práce. Dobro vs. zlo. Nevinnost uprostřed korupce.",
+ jazyk:"Er-forma. Živé dialogy. Detailní popis londýnského podsvětí.",
+ kontext:"Anglie průmyslové revoluce. Dickens bojoval proti vykořisťování dětí.",
+ pojmy:["román","realismus","er-forma","sociální_kritika","kompozice"]},
+
+{id:30,autor:"Neruda, Jan",nazev:"Povídky malostranské",rok:"1877",zanr:"Povídky",obdobi:"19",
+ info:"Soubor povídek ze života pražské Malé Strany — klasika české prózy.",
+ autor_info:"Jan Neruda (1834–1891) — český básník, prozaik a novinář. Jeden z nejvýznamnějších představitelů českého realismu — generace Máje.",
+ dej:"13 povídek o obyvatelích pražské Malé Strany. Pan Ryšánek a pan Schlegl (spory sousedů), Týden v tichém domě, Jak si pan Vorel nakouřil pěnovku. Každá povídka zachycuje typ malostranského měšťáka.",
+ postavy:"Různé typy malostranských obyvatel — měšťané, sousedé, podivíni. Pan Vorel, pan Ryšánek.",
+ temata:"Každodenní život malostranský. Lidská malost a laskavost. Zachování lokálního světa. Nostalgie.",
+ jazyk:"Ich-forma vypravěče. Hovorový jazyk, dialogy. Jemná ironie a humor.",
+ kontext:"Český realismus, generace Máje. Neruda psal povídky jako novinář.",
+ pojmy:["povídka","realismus","ich-forma","ironie","charakteristika","lokální_próza"]},
+
+{id:31,autor:"Vrchlický, Jaroslav",nazev:"Noc na Karlštejně",rok:"1884",zanr:"Komedie / historická hra",obdobi:"19",
+ info:"Nejoblíbenější česká historická komedie — ženám vstup zakázán!",
+ autor_info:"Jaroslav Vrchlický (1853–1912) — český básník a dramatik. Nejvýznamnější představitel lumírovské generace. Překladatel světové literatury.",
+ dej:"Na Karlštejně platí zákaz vstupu žen. Alena, manželka Petra, se přestrojí za panoše, aby mohla být u muže. Královna Eliška chce také vidět císaře Karla. Karel IV. zákon přehlédne — ženy se prozradí.",
+ postavy:"Karel IV. — moudrý, velkorysý. Alena — odvážná. Královna Eliška. Petr z Rozmberka.",
+ temata:"Láska překonává zákazy. Moudrost vs. zákon. Historická kulisa jako hravý rámec.",
+ jazyk:"Veršovaná komedie. Rytmický dialog. Historické reálie.",
+ kontext:"Lumírovská generace. Vrchlický čerpá z české středověké historie.",
+ pojmy:["komedie","drama","dialog","historická_hra","verš"]},
+
+{id:32,autor:"Mrštíkové, Alois a Vilém",nazev:"Maryša",rok:"1894",zanr:"Realistické drama",obdobi:"19",
+ info:"Nejvýznamnější české realistické drama — tragédie vesnické ženy.",
+ autor_info:"Alois Mrštík (1861–1925) a Vilém Mrštík (1863–1912) — bratři, čeští realisté. Maryša je jejich společné dílo.",
+ dej:"Maryša miluje Francka, ale rodiče ji provdají za bohatého vdovce Vávru. Francek se vrátí z vojny. Maryša otrávila Vávru. Je zatčena.",
+ postavy:"Maryša — tragická hrdinka, pasivně trpí. Vávra — hrubý manžel. Francek — milý. Rodiče — bezohledná autorita.",
+ temata:"Svoboda vs. vůle rodičů. Tragédie pasivního odporu. Venkovská krutost. Láska a smrt.",
+ jazyk:"Moravský dialekt. Realistické dialogy. Tragická gradace.",
+ kontext:"Český realismus. Sociální kritika venkova. Inspirováno skutečnou událostí.",
+ pojmy:["drama","tragédie","realismus","dialog","konflikt","dialekt","gradace"]},
+
+{id:33,autor:"Dyk, Viktor",nazev:"Krysař",rok:"1915",zanr:"Novela / symbolismus",obdobi:"19",
+ info:"Česká symbolistní novela — alegorie o umělci a moci.",
+ autor_info:"Viktor Dyk (1877–1931) — český básník, prozaik a dramatik. Silně vlastenecky orientován. Člen České státoprávní demokracie.",
+ dej:"Krysař přijde do Hammeln zbavit město krys. Dostane odměnu v podobě dívky Agnes, ale město mu nezaplatí. Agnes ho opustí (čeká dítě s jiným). Krysař svou píšťalou odvede všechny obyvatele — i děti — do propasti. Přežije jen opilec Sepp Jörgen.",
+ postavy:"Krysař — osamělý umělec, neuznávaný. Agnes — milá, nevěrná. Sepp Jörgen — nevinný opilec.",
+ temata:"Neuznávaný umělec. Zrada a pomsta. Moc hudby (umění). Destrukce jako odpověď na nespravedlnost.",
+ jazyk:"Symbolismus. Krátké věty. Mystická atmosféra. Hudba jako leitmotiv.",
+ kontext:"Česká moderna, symbolismus. Inspirováno středověkou legendou o Kryšaři z Hammeln.",
+ pojmy:["novela","symbolismus","alegorie","leitmotiv","symbol","moderna"]},
+
+{id:34,autor:"Wilde, Oscar",nazev:"Jak je důležité míti Filipa",rok:"1895",zanr:"Komedie",obdobi:"19",
+ info:"Vrchol anglické divadelní konverzační komedie — vtip a paradox.",
+ autor_info:"Oscar Wilde (1854–1900) — irský spisovatel a estetik. Žil skandálním životem, byl uvězněn pro homosexualitu. Mistr paradoxu a epigramu.",
+ dej:"Jack Worthing si vymyslí fiktivního bratra Ernesta, aby mohl navštěvovat Londýn. Gwendolen chce provdat za muže jménem Ernest. Cecily si zamiluje Algernona, který se vydává za Ernesta. Na konci se ukáže, že Jack se skutečně jmenuje Ernest.",
+ postavy:"Jack Worthing — gentlman s tajemstvím. Gwendolen — mondénní. Algernon — epikurovec. Lady Bracknell — autoritativní.",
+ temata:"Falešná identita. Ironie viktoriánské společnosti. Láska a jméno. Absurdita konvencí.",
+ jazyk:"Brilantní dialogy. Paradoxy a epigramy. Rychlé tempo. Konverzační styl.",
+ kontext:"Viktoriánská Anglie. Wilde satirizuje společenskou povrchnost.",
+ pojmy:["komedie","drama","ironie","satira","dialog","paradox"]},
+
+{id:35,autor:"Wilde, Oscar",nazev:"Obraz Doriana Graye",rok:"1890",zanr:"Gotický román",obdobi:"19",
+ info:"Filozofický román o kráse, mravní korupci a dvojníkovi.",
+ autor_info:"Oscar Wilde (1854–1900). Viz Jak je důležité míti Filipa.",
+ dej:"Krásný mladý Dorian Gray si přeje, aby místo něj stárl jeho portrét. Přání se splní. Pod vlivem lorda Henryho žije hédonisticky. Portrét se mění — zobrazuje jeho hříchy. Dorian zabije malíře. Nakonec bodne obraz — a sám zemře.",
+ postavy:"Dorian Gray — krásný, zkažený. Lord Henry — cynický epikurovec, Dorianova zkáza. Basil — malíř, má k Dorianovi upřímný vztah.",
+ temata:"Krása vs. morálka. Dvojnictví (Dorian a obraz). Hédonismus a jeho důsledky. Ztráta duše.",
+ jazyk:"Estetismus — krásný styl. Dialog plný paradoxů. Gotické prvky.",
+ kontext:"Viktoriánská Anglie, estetismus. Wilde vložil do románu svou filozofii.",
+ pojmy:["román","gotika","symbol","alegorie","hédonismus","estetismus","dvojnictví"]},
+
+{id:36,autor:"Wilde, Oscar",nazev:"Šťastný princ a jiné pohádky",rok:"1888",zanr:"Pohádky",obdobi:"19",
+ info:"Literární pohádky — melancholické příběhy o oběti a laskavosti.",
+ autor_info:"Oscar Wilde (1854–1900). Viz Jak je důležité míti Filipa.",
+ dej:"Šťastný princ — zlatá socha se ptáčkem. Princ prosí ptáka, aby rozdal jeho zlato chudým. Pták zemře zimou. Bůh vezme jejich duše do ráje. Jiné pohádky: Sobecký obr (přijme děti na svou zahradu), Slavík a růže.",
+ postavy:"Princ — socha, obětuje se. Vlaštovka — věrná, zemře. Obr — sobecký, pak laskavý.",
+ temata:"Sebeobětování a laskavost. Chudoba a bohatství. Materiální vs. duchovní hodnoty.",
+ jazyk:"Pohádkový, poetický styl. Jemná melancholie. Alegorie.",
+ kontext:"Wilde psal pohádky pro děti, ale s hlubokými alegoriemi pro dospělé.",
+ pojmy:["pohádka","alegorie","symbol","epika","melancholie"]},
+
+{id:37,autor:"May, Karl",nazev:"Vinnetou",rok:"1893",zanr:"Dobrodružný román",obdobi:"20",
+ info:"Nejpopulárnější dobrodružný román německé literatury o přátelství s indiánem.",
+ autor_info:"Karl May (1842–1912) — německý spisovatel. Sám nikdy nebyl v Americe, přesto psal o Divokém západě. Vinnetou je jeho nejslavnější postava.",
+ dej:"Mladý Němec Old Shatterhand přijede do Ameriky a spřátelí se s náčelníkem Apačů Vinnetouem. Spolu bojují za spravedlnost, chrání Indiány před bílými kolonizátory. Vinnetou na konci umírá.",
+ postavy:"Old Shatterhand — německý hrdina. Vinnetou — ušlechtilý indiánský náčelník.",
+ temata:"Přátelství přes rasové hranice. Spravedlnost. Zánik indiánského světa. Odvaha.",
+ jazyk:"Dobrodružné tempo. Er-forma s ich-vypravěčem. Romantizující popis přírody.",
+ kontext:"Německý romantismus/koloniální literatura. Kontroverzní — romantizuje indiány.",
+ pojmy:["román","dobrodružný román","er-forma","romantismus"]},
+
+{id:38,autor:"Verne, Jules",nazev:"Dvacet tisíc mil pod mořem",rok:"1870",zanr:"Vědeckofantastický román",obdobi:"20",
+ info:"Klasika sci-fi — podmořský svět kapitána Nema.",
+ autor_info:"Jules Verne (1828–1905) — francouzský spisovatel, otec sci-fi literatury. Psal románové předpovědi technického pokroku.",
+ dej:"Profesor Aronnax, jeho sluha Conseil a harpunář Ned Land jsou zajati na tajemné podmořské lodi Nautilus kapitána Nema. Procestují oceány. Nemo — tajemný gentleman s temnou minulostí. Na konci uniknou v Maelströmu.",
+ postavy:"Kapitán Nemo — geniální, záhadný. Profesor Aronnax — vědec, vypravěč. Ned Land — praktický.",
+ temata:"Věda a tajemství přírody. Svoboda vs. vězení. Záhadná minulost. Technický pokrok.",
+ jazyk:"Vědecké popisy. Er-forma. Napínavé tempo.",
+ kontext:"Vědeckofantastická literatura 19. stol. Verne předpovídal ponorky, letadla, kosmické lety.",
+ pojmy:["román","sci-fi","er-forma","kompozice"]},
+
+{id:39,autor:"Burgess, Anthony",nazev:"Mechanický pomeranč",rok:"1962",zanr:"Dystopický román",obdobi:"20",
+ info:"Kontroverzní dystopický román o násilí, svobodě a kondicionování.",
+ autor_info:"Anthony Burgess (1917–1993) — anglický spisovatel. Román napsal po znásilnění manželky. Kubrickova filmová adaptace (1971) je slavnější než kniha.",
+ dej:"Alex, teenager, vede gang a páchá násilí pro zábavu. Je uvězněn a podstoupí Ludovicovu terapii — podmíněně se mu zhnusí násilí. Propuštěn — bezbranný v krutém světě. Nakonec terapii překoná a vrátí se k 'normálu'.",
+ postavy:"Alex — narcistní násilník s láskou k Beethovenovi. Stát — totalitní systém.",
+ temata:"Svobodná vůle vs. podmíněné chování. Násilí jako přirozené i naučené. Moc státu. Dospívání.",
+ jazyk:"Nadsat — vymyšlený slang (rusko-anglický mix). Ich-forma. Vyprávění v slangu desorientuje.",
+ kontext:"Britská literatura 60. let. Kubrickův film zakázán v UK na 27 let.",
+ pojmy:["dystopie","román","ich-forma","existencialismus","jazyk","svobodná vůle"]},
+
+{id:40,autor:"Orwell, George",nazev:"Farma zvířat",rok:"1945",zanr:"Alegorická bajka",obdobi:"20",
+ info:"Politická alegorie na sovětský totalitarismus — mistr žánru.",
+ autor_info:"George Orwell (1903–1950), vlastním jménem Eric Arthur Blair — anglický spisovatel a novinář. Bojoval ve španělské občanské válce. Psal o totalitarismu a chudobě.",
+ dej:"Zvířata na Farmě Manor se vzbouří proti farmáři Jonesovi. Převezmou farmu — 'Všechna zvířata jsou si rovna'. Prasata (Napoleon, Boxer) se chopí moci. Postupně přepisují pravidla: 'Některá zvířata jsou si rovnější'. Napoleon se stane novým diktátorem.",
+ postavy:"Napoleon — Stalin. Sněhová koule — Trockij. Boxer — věrný dělník. Přasenice Squealer — propaganda.",
+ temata:"Revoluce se požírá sama. Totalitarismus. Propaganda a manipulace s historií. Korupce moci.",
+ jazyk:"Jednoduchá bajka. Er-forma. Alegorie — zvíře = člověk. Satirický tón.",
+ kontext:"Alegorie na SSSR a stalinismus. Orwell byl levičák zklamaný komunismem.",
+ pojmy:["bajka","alegorie","dystopie","satira","er-forma","symbol","politická literatura"]},
+
+{id:41,autor:"Orwell, George",nazev:"1984",rok:"1949",zanr:"Dystopický román",obdobi:"20",
+ info:"Nejslavnější dystopie — varování před totalitarismem.",
+ autor_info:"George Orwell (1903–1950). Viz Farma zvířat.",
+ dej:"V totalitní Oceánii vládne Strana a Velký bratr. Winston Smith pracuje v Ministerstvu pravdy — přepisuje historii. Tajně se vzepře — miluje Julii, čte zakázané knihy. Tajná policie ho zatkne. Po mučení přijme Stranu — 'miluje' Velkého bratra.",
+ postavy:"Winston Smith — vzpurný. Julia — jeho milá. O'Brien — zdánlivý rebel, ve skutečnosti agent. Velký bratr — symbol totální moci.",
+ temata:"Totalitní kontrola. Přepisování pravdy. Jazyk jako nástroj moci (newspeak). Destrukce individuality.",
+ jazyk:"Er-forma. Strohý, úřední styl Oceánie. Newspeak — redukce jazyka.",
+ kontext:"Napsáno 1948 (1984 = obráceně). Varování po nacismu a stalinismu.",
+ pojmy:["dystopie","román","er-forma","alegorie","symbol","totalitarismus","jazyk"]},
+
+{id:42,autor:"Wyndham, John",nazev:"Den trifidů",rok:"1951",zanr:"Sci-fi / apokalypsa",obdobi:"20",
+ info:"Klasická postapokalyptická sci-fi — záhadné rostliny ovládnou svět.",
+ autor_info:"John Wyndham (1903–1969) — anglický sci-fi spisovatel. Psal tzv. 'krotký apokalyptický' žánr.",
+ dej:"Meteoritický déšť oslepí většinu lidí. Trifidi — jedovaté chodící rostliny — začnou lovit bezbranné lidi. Hrstka vidoucích bojuje o přežití. Bill Masen (imunní) a Josella budují kolonie přeživších.",
+ postavy:"Bill Masen — vypravěč, pragmatický. Josella — jeho partnerka.",
+ temata:"Apokalypsa a přežití. Civilizace je křehká. Adaptace nebo zánik. Slepota jako metafora.",
+ jazyk:"Ich-forma. Vědecký přístup. Anglická střídmost.",
+ kontext:"Poválečná britská literatura. Odráží strach z jaderné apokalypsy.",
+ pojmy:["sci-fi","dystopie","ich-forma","alegorie","apokalypsa"]},
+
+{id:43,autor:"Doyle, Arthur Conan",nazev:"Dobrodružství brigadýra Gérarda",rok:"1896",zanr:"Historická dobrodružná próza",obdobi:"20",
+ info:"Humoristické příběhy o sebevědomém francouzském husarovi.",
+ autor_info:"Arthur Conan Doyle (1859–1930) — britský spisovatel. Slavný tvůrce Sherlocka Holmese. Brigadýr Gérard je jeho druhá nejznámější postava.",
+ dej:"Séria příběhů o husarském plukovníku Gerardu — hrdina napoleonských válek. Gérard je odvážný, ale naivní a komicky přehnaně sebevědomý. Dobrodružství v zákulisí napoleonských kampaní.",
+ postavy:"Etienne Gerard — chrabrý, komicky přehnaný hrdin. Napoleon — v pozadí.",
+ temata:"Hrdinství a jeho parodie. Komika naivity. Napoleonské války.",
+ jazyk:"Ich-forma Gerardovy zpovědi. Humor ze sebepochvalného tónu. Historické reálie.",
+ kontext:"Britská dobrodružná próza. Parodie hrdinského románu.",
+ pojmy:["povídka","ich-forma","parodie","historický román","humor"]},
+
+{id:44,autor:"Doyle, Arthur Conan",nazev:"Pes baskervillský",rok:"1902",zanr:"Detektivní román",obdobi:"20",
+ info:"Nejslavnější detektivní román — Sherlock Holmes v gotickém prostředí.",
+ autor_info:"Arthur Conan Doyle (1859–1930). Viz Dobrodružství brigadýra Gérarda.",
+ dej:"Na venkovském panství rodiny Baskervillů straší nadpřirozený pes. Sir Henry Baskerville je v nebezpečí. Holmes a Watson přijedou vyšetřovat. Holmes odhalí, že pes je skutečný — natřený fosforem — a stopy vedou k zákeřnému příbuznému.",
+ postavy:"Sherlock Holmes — geniální detektiv. Dr. Watson — přítel, vypravěč. Stapletonová — záporák.",
+ temata:"Rozum vs. pověra. Vědecká metoda. Záhada a její rozuzlení.",
+ jazyk:"Er-forma Watsona. Gotická atmosféra. Detektivní logika.",
+ kontext:"Zlatý věk detektivní literatury. Holmes = symbol racionalismu.",
+ pojmy:["román","detektivní literatura","er-forma","gotika","racionální metoda"]},
+
+{id:45,autor:"Christie, Agatha",nazev:"Vražda v Orient expresu",rok:"1934",zanr:"Detektivní román",obdobi:"20",
+ info:"Nejslavnější detektivní román — nečekaný závěr.",
+ autor_info:"Agatha Christie (1890–1976) — 'královna detektivek'. Napsala 66 detektivních románů. Hercule Poirot a slečna Marplová jsou její hlavní detektivové.",
+ dej:"V zablokovaném Orient expresu je nalezen zavražděný Américan Ratchett. Detektiv Hercule Poirot vyšetřuje 12 podezřelých. Závěr šokuje: všech 12 cestujících se podílelo na vraždě — jako kolektivní pomsta za starý zločin.",
+ postavy:"Hercule Poirot — belgický detektiv. 12 cestujících — každý podezřelý.",
+ temata:"Spravedlnost mimo zákon. Kolektivní vina. Logická detektivní hra.",
+ jazyk:"Er-forma. Detailní logická dedukce. Napínavé tempo.",
+ kontext:"Zlatý věk detektivky. Jedna z nejprodávanějších knih všech dob.",
+ pojmy:["román","detektivní literatura","er-forma","kompozice","záhadná postava"]},
+
+{id:46,autor:"Shaw, George Bernard",nazev:"Pygmalion",rok:"1913",zanr:"Komedie",obdobi:"20",
+ info:"Hra o jazyce, třídě a identitě — předloha muzikálu My Fair Lady.",
+ autor_info:"George Bernard Shaw (1856–1950) — irský dramatik. Nobelova cena za literaturu 1925. Sociální kritik a ironik.",
+ dej:"Profesor fonetiky Higgins se vsadí, že z pouliční prodavačky Elisy Doolittleové udělá dámu — naučí ji správně mluvit. Uspěje — Elisa se chová jako vévodkyně. Ale pak chce žít vlastním životem, ne být Higginsovým experimitem.",
+ postavy:"Elisa Doolittleová — chudá, pak proměněna. Higgins — arogantní vědec. Plukovník Pickering — gentleman.",
+ temata:"Jazyk jako třídní nástroj. Identita a sebeúcta. Pokus na živém člověku. Emancipace.",
+ jazyk:"Brilantní dialogy. Cockney vs. vytříbená angličtina. Satirická komedie.",
+ kontext:"Edwardiánská Anglie. Shaw kritizuje třídní systém. Inspiroval muzikál My Fair Lady.",
+ pojmy:["komedie","drama","satira","dialog","jazyk","sociální kritika"]},
+
+{id:47,autor:"Camus, Albert",nazev:"Cizinec",rok:"1942",zanr:"Existencialistický román",obdobi:"20",
+ info:"Zakladatelský text existencialismu a absurdismu.",
+ autor_info:"Albert Camus (1913–1960) — francouzský spisovatel a filozof alžírského původu. Nobelova cena 1957. Filosof absurdity — 'svět nemá smysl, ale člověk musí žít'.",
+ dej:"Meursault se dozví o matčině smrti — nijak ho to netýká. Zastřelí Araba na pláži bez jasného důvodu. U soudu ho odsoudí méně za vraždu, více za to, že na matčině pohřbu neplakal. Čeká na popravu — poprvé si uvědomí, že mu svět je lhostejný.",
+ postavy:"Meursault — lhostejný, bez emocí. Marie — přítelkyně. Soudci — reprezentují pokryteckou společnost.",
+ temata:"Absurdita existence. Společenská konvence vs. autentičnost. Cizost ve světě. Smrt.",
+ jazyk:"Ich-forma. Strohý, faktický styl. Žádné emoce v jazyce. Distancovaný vypravěč.",
+ kontext:"Francouzský existencialismus 40. let. Camus — filosof absurdity (Mýtus o Sisyfovi).",
+ pojmy:["román","existencialismus","absurdní drama","ich-forma","er-forma","lhostejnost","symbol"]},
+
+{id:48,autor:"Exupéry, Antoine de Saint",nazev:"Malý princ",rok:"1943",zanr:"Filozofická pohádka",obdobi:"20",
+ info:"Nejpřekládanější francouzská kniha — pohádka pro dospělé.",
+ autor_info:"Antoine de Saint-Exupéry (1900–1944) — francouzský spisovatel a pilot. Zahynul při průzkumném letu za 2. světové války. Malý princ je jeho závěť.",
+ dej:"Pilot nouzově přistane v Sahaře. Setkává se s Malým princem z planetky B-612. Princ vypráví o své růži, cestách po planetách. Nakonec se nechá uštkout hadem — vrátí se na svou planetu.",
+ postavy:"Malý princ — čistá dětská duše. Liška — moudrá, naučí ho přátelství. Růže — jeho láska. Pilot — dospělý, který znovu nachází dětský pohled.",
+ temata:"Čistota dětského pohledu vs. malost dospělých. Přátelství a odpovědnost. Láska. 'Dobře vidí jen srdce'.",
+ jazyk:"Jednoduchý, poetický styl. Alegorie. Dialogy přinášejí filozofické ponaučení.",
+ kontext:"2. světová válka. Saint-Exupéry psal v exilu. Kniha je duchovní závěť.",
+ pojmy:["pohádka","alegorie","symbol","existencialismus","lyrický subjekt","metafora"]},
+
+{id:49,autor:"Remarque, Erich Maria",nazev:"Na západní frontě klid",rok:"1929",zanr:"Protiválečný román",obdobi:"20",
+ info:"Nejslavnější protiválečný román — pohled z zákopů.",
+ autor_info:"Erich Maria Remarque (1898–1970) — německý spisovatel. Sám bojoval v 1. světové válce. Kniha byla nacisty spálena.",
+ dej:"Paul Bäumer a jeho spolužáci se dobrovolně přihlásí do války. Hrůzy zákopů je zlomí. Postupně umírají kamarádi — Kemmerich, Haie, Kat. Paul přežívá, ale vnitřně je mrtvý. V posledním dni války — kdy je hlášen klid — Paul zemře.",
+ postavy:"Paul Bäumer — mladý voják, vypravěč. Kat — starší zkušený voják. Kemmerich — první mrtvý.",
+ temata:"Válka ničí mladost a iluze. Propast mezi frontou a zázemím. Kamarádství. Zbytečná smrt.",
+ jazyk:"Ich-forma. Strohý realismus. Naturalistické popisy. Kontrast — jídlo a smrt.",
+ kontext:"Výmarská republika. Němci spálili knihu. Remarque emigroval.",
+ pojmy:["román","realismus","naturalismus","ich-forma","protiválečná literatura","kontrast"]},
+
+{id:50,autor:"Hemingway, Ernest",nazev:"Sbohem, armádo",rok:"1929",zanr:"Protiválečný román",obdobi:"20",
+ info:"Autobiografický protiválečný román o lásce a úniku z války.",
+ autor_info:"Ernest Hemingway (1899–1961) — americký spisovatel. Byl v 1. sv. válce raněn v Itálii. Ikebuka nobelisty (1954). Zemřel sebevraždou.",
+ dej:"Americký dobrovolník Frederic Henry slouží v italské armádě za 1. sv. války. Zamiluje se do zdravotní sestry Catherine Barkleyové. Je raněn. Uprostřed italské kapitulace dezertuje. S Catherine utečou do Švýcarska. Catherine zemře při porodu.",
+ postavy:"Frederic Henry — dezertér z lásky. Catherine Barkleyová — zdravotní sestra.",
+ temata:"Láska vs. válka. Dezerce jako morální volba. Ztráta iluzí. Smrt přichází náhle.",
+ jazyk:"Hemingwayův iceberg styl — co se neřekne, je důležitější. Krátké věty. Dialogy.",
+ kontext:"Ztracená generace (Lost Generation). Hemingway autobiograficky.",
+ pojmy:["román","realismus","ich-forma","protiválečná literatura","iceberg styl","dialog"]},
+
+{id:51,autor:"Hemingway, Ernest",nazev:"Stařec a moře",rok:"1952",zanr:"Novela",obdobi:"20",
+ info:"Nobelova novela o lidské vytrvalosti a důstojnosti.",
+ autor_info:"Ernest Hemingway (1899–1961). Viz Sbohem, armádo.",
+ dej:"Starý rybář Santiago 84 dní nic nechytí. Vydá se daleko na moře. Po dvou dnech boje přemůže obrovskou marlinu. Na cestě zpět ji zkonzumují žraloci. Santiago se vrátí jen s kostrou — ale neporažen.",
+ postavy:"Santiago — starý rybář, hrdost a vytrvalost. Manolin — mladý učeň, věří v Santiaga.",
+ temata:"Boj člověka s přírodou. Důstojnost v prohře. Vytrvalost. Přirozené hrdinství.",
+ jazyk:"Iceberg styl. Jednoduchý jazyk, hlubší smysl. Minimalistický. Moře jako symbol.",
+ kontext:"Napsáno na Kubě. Nobelova cena 1954 — Hemingway citoval tuto novelu.",
+ pojmy:["novela","realismus","ich-forma","iceberg styl","symbol","alegorie"]},
+
+{id:52,autor:"Steinbeck, John",nazev:"O myších a lidech",rok:"1937",zanr:"Novela",obdobi:"20",
+ info:"Silná novela o americkém snu a jeho krachu.",
+ autor_info:"John Steinbeck (1902–1968) — americký spisovatel. Nobelova cena 1962. Psal o dělnické třídě a hospodářské krizi.",
+ dej:"George a Lennie — dva přátelé v době hospodářské krize. George je malý a chytrý, Lennie obrovský a mentálně postižený. Sní o vlastní farmě. Lennie nechtěně zabije ženu rančéra. George ho zastřelí, aby ho ušetřil krutého lynče.",
+ postavy:"George — ochranitel, praktický. Lennie — obří, nevinný, nebezpečný. Curleyho žena — osamělá.",
+ temata:"Americký sen a jeho zánik. Přátelství a oběť. Osud vs. vůle. Zranitelnost nevinných.",
+ jazyk:"Dialogy v dialektu. Stručný, dramatický styl. Rámcová kompozice.",
+ kontext:"Velká hospodářská krize 30. let. Steinbeck psal o marginalizovaných.",
+ pojmy:["novela","realismus","dialog","rámcová kompozice","americký sen","tragédie"]},
+
+{id:53,autor:"Rolland, Romain",nazev:"Petr a Lucie",rok:"1920",zanr:"Novela",obdobi:"20",
+ info:"Krátká protiválečná novela o lásce v bombardovaném Paříži.",
+ autor_info:"Romain Rolland (1866–1944) — francouzský humanistický spisovatel. Nobelova cena 1915. Pacifista.",
+ dej:"Paříž 1918. Při náletu se v metru setkají Petr a Lucie. Zamilují se přes válku. Jejich láska je čistá a krátká. Na Velký pátek jdou do kostela — bomba dopadne. Oba zahynou.",
+ postavy:"Petr — mladý voják čekající na frontu. Lucie — studentka malířství.",
+ temata:"Láska uprostřed hrůzy. Krása a smrt. Válka ničí to nejkrásnější.",
+ jazyk:"Lyrická próza. Poetický styl. Krátká forma.",
+ kontext:"1. světová válka. Rolland byl pacifista — novela je obranou humanismu.",
+ pojmy:["novela","realismus","lyrika","protiválečná literatura","symbol","atmosféra"]},
+
+{id:54,autor:"Fitzgerald, Francis Scott",nazev:"Velký Gatsby",rok:"1925",zanr:"Roman",obdobi:"20",
+ info:"Román o americkém snu a jeho zklamání — ikona doby jazzu.",
+ autor_info:"F. Scott Fitzgerald (1896–1940) — americký spisovatel. Symbol 'ztracené generace' a doby jazzu. Zemřel v chudobě.",
+ dej:"Nick Carraway se přistěhuje k Long Islandu a sousedí s tajemným milionářem Gatsbym. Gatsby pořádá honosné večírky, ale touží jen po jedné věci — po Daisy, ženě Nicova bratrance Toma. Daisy ho opustila pro peníze. Gatsby zemře zbytečnou smrtí.",
+ postavy:"Gatsby — idealista, nový boháč. Daisy — povrchní, symbol snu. Nick — vypravěč, svědomí příběhu.",
+ temata:"Americký sen a jeho zklamání. Staré peníze vs. nové bohatství. Iluze a realita. Minulost.",
+ jazyk:"Ich-forma (Nick). Lyrický, poetický styl. Zelené světlo jako symbol.",
+ kontext:"Zlatá dvacátá léta, prohibice, jazz. Fitzgerald autobiograficky.",
+ pojmy:["román","ich-forma","symbol","americký sen","modernismus","alegorie"]},
+
+{id:55,autor:"Fitzgerald, Francis Scott",nazev:"Podivuhodný případ Benjamina Buttona",rok:"1922",zanr:"Povídka / fantastika",obdobi:"20",
+ info:"Fantastická povídka o muži, který stárne pozpátku.",
+ autor_info:"F. Scott Fitzgerald (1896–1940). Viz Velký Gatsby.",
+ dej:"Benjamin Button se narodí jako starý muž a postupně mládne. Zažívá všechny životní fáze pozpátku — stáří, dospělost, dětství. Filmová adaptace Davida Finchera (2008).",
+ postavy:"Benjamin Button — reverzní stárnutí. Daisy (filmová verze) — jeho láska.",
+ temata:"Čas a jeho relativita. Jinakost v společnosti. Stárnutí a mládí. Osamělost.",
+ jazyk:"Er-forma. Jemný humor. Surrealistické prvky.",
+ kontext:"Amerika 20. let. Fitzgerald experimentuje s formátem.",
+ pojmy:["povídka","fantastika","er-forma","alegorie","čas","symbol"]},
+
+{id:56,autor:"Salinger, Jerome David",nazev:"Kdo chytá v žitě",rok:"1951",zanr:"Roman",obdobi:"20",
+ info:"Kultovní román dospívání — hlas generace.",
+ autor_info:"J. D. Salinger (1919–2010) — americký spisovatel. Po úspěchu Holden Caulfielda žil jako poustevník.",
+ dej:"16letý Holden Caulfield je vyhozen ze školy a tři dny tráví sám v New Yorku. Potkává různé lidi — prostitutky, jeptišky, staré přátele. Hledá autentičnost v pokryteckém světě dospělých. Nakonec se vrátí domů.",
+ postavy:"Holden Caulfield — rebelský teenager, hledač pravdy. Phoebe — mladší sestra, jeho kotva.",
+ temata:"Dospívání a ztráta nevinnosti. Pokrytectví dospělých vs. čistota dětí. Osamělost. Identita.",
+ jazyk:"Ich-forma v hovorovém jazyce. Nespolehlivý vypravěč. Slang 50. let.",
+ kontext:"Poválečná Amerika, konformní 50. léta. Román se stal bibli rebelů.",
+ pojmy:["román","ich-forma","dospívání","modernismus","nespolehlivý vypravěč","dialog"]},
+
+{id:57,autor:"Christiane F.",nazev:"My děti ze stanice ZOO",rok:"1978",zanr:"Autobiografie / reportáž",obdobi:"20",
+ info:"Dokumentární román o drogové závislosti berlínské mládeže.",
+ autor_info:"Christiane F. (narozena 1962), vlastním jménem Christiane Vera Felscherinow — německá autorka. Příběh je autentické svědectví.",
+ dej:"Christiane F. — 13letá dívka ze sídliště Berlín-Gropiusstadt. Chodí na koncerty Davida Bowieho, zkusí heroin. Závislost ji vtáhne do prostituce u Zoo stanice. Vylíčení dna — jail, detox, relaps.",
+ postavy:"Christiane — vypravěčka, oběť systému. Detty — přítelkyně.",
+ temata:"Závislost a její destrukce. Selhání rodiny a společnosti. Dospívání v brutálním prostředí.",
+ jazyk:"Ich-forma. Autentický jazyk subkultury. Reportážní styl.",
+ kontext:"70. léta Západní Berlín. Zpracováno ve filmu (1981).",
+ pojmy:["autobiografie","ich-forma","reportáž","dokumentární literatura"]},
+
+{id:58,autor:"Solženicyn, Alexandr",nazev:"Jeden den Ivana Děnisoviče",rok:"1962",zanr:"Novela",obdobi:"20",
+ info:"První publikovaná kniha o sovětských gulazích — literární bomba.",
+ autor_info:"Alexandr Solženicyn (1918–2008) — ruský spisovatel a disident. Sám strávil 8 let v gulagu. Nobelova cena 1970. Byl deportován ze SSSR.",
+ dej:"Jeden zimní den v sovětském pracovním táboře (gulagu) očima vězně Šuchova. Vstávání ve tmě, práce na mrazu, boj o přídavek jídla, vyhýbání se trestu. Šuchov přežije den — to je vítězství.",
+ postavy:"Ivan Děnisovič Šuchov — prostý vesnický muž, přežívá dignifikovaně. Ostatní vězni.",
+ temata:"Důstojnost v nelidských podmínkách. Totalitní systém. Přežití. Solidarita.",
+ jazyk:"Er-forma přibližující se vnitřnímu pohledu. Jazyk táborového slangu. Jeden den = mikrokosmos.",
+ kontext:"SSSR, Chruščovovo tání. Publikování v časopise Novyj Mir — šok v SSSR.",
+ pojmy:["novela","er-forma","realismus","totalitarismus","dokumentární literatura"]},
+
+{id:59,autor:"Franková, Anna",nazev:"Deník Anne Franke",rok:"1947",zanr:"Deník / autobiografie",obdobi:"20",
+ info:"Nejčtenější osobní svědectví o holocaustu.",
+ autor_info:"Anne Franková (1929–1945) — německo-nizozemská židovská dívka. Psala deník v úkrytu v Amsterdamu. Zahynula v Bergen-Belsenu. Deník vydal její otec.",
+ dej:"13letá Anne začne psát deník v červnu 1942. Rodina Frankových se skryje v zadním domě (Achterhuis) v Amsterdamu. Anne píše o každodennosti úkrytu, o svých snech, o dospívání, o válce. V srpnu 1944 jsou odhaleni a deportováni.",
+ postavy:"Anne — inteligentní, citlivá, ambiciózní. Margot — starší sestra. Peter — chlapec v úkrytu.",
+ temata:"Dospívání v extrémních podmínkách. Naděje uprostřed hrůzy. Lidská důstojnost. Holocaust.",
+ jazyk:"Deníkový styl. Ich-forma. Adresát 'Kitty'. Bezprostřední, upřímný tón.",
+ kontext:"2. světová válka, holocaust. Jeden z nejpřeloženějších textů světa.",
+ pojmy:["deník","autobiografie","ich-forma","dokumentární literatura","holocaust"]},
+
+{id:60,autor:"Zusak, Markus",nazev:"Zlodějka knih",rok:"2005",zanr:"Historický román",obdobi:"20",
+ info:"Román o dívce v nacistickém Německu vyprávěný Smrtí.",
+ autor_info:"Markus Zusak (narozen 1975) — australský spisovatel německého původu. Zlodějka knih je jeho nejúspěšnější román.",
+ dej:"Liesel Meminger — dívka v nacistickém Německu. Adoptivní rodina ji přijme. Liesel krade knihy a čte je. Ukrývají Žida Maxe. 2. sv. válka postupuje. Bombové útoky zničí ulici — přežije jen Liesel. Vypravěčem je Smrt.",
+ postavy:"Liesel — dívka, miluje slova. Hans Hubermann — adoptivní otec. Max — skrývající se Žid. Smrt — vypravěč.",
+ temata:"Síla slov a knih. Lidskost uprostřed nacismu. Smrt a přežití. Dospívání.",
+ jazyk:"Er-forma (Smrt jako vypravěč) — originální perspektiva. Poetický styl.",
+ kontext:"Nacistické Německo. 2. sv. válka. Bestseller i film (2013).",
+ pojmy:["román","er-forma","perspektiva","symbol","alegorie","historický román"]},
+
+{id:61,autor:"Styron, William",nazev:"Sophiina volba",rok:"1979",zanr:"Roman",obdobi:"20",
+ info:"Román o holocaustu, vině a nemožnosti přežití bez ztráty.",
+ autor_info:"William Styron (1925–2006) — americký spisovatel. Sophiina volba je jeho hlavní dílo.",
+ dej:"Sophie — Polka, přeživší Osvětim. V New Yorku žije s Nathanem (Žid, schizofrenik). Stingo — mladý spisovatel — je svědkem jejich bouřlivého vztahu. Postupně se odhaluje Sophiino tajemství — v Osvětimi musela vybrat, které z dětí zemře.",
+ postavy:"Sophie — traumatizovaná přeživší. Nathan — milující, ale nemocný. Stingo — vypravěč.",
+ temata:"Vina přeživších. Holocaust a jeho nesmazatelné jizvy. Láska a sebedestrukce. Volba bez volby.",
+ jazyk:"Ich-forma (Stingo). Retrospektiva. Gradující napětí.",
+ kontext:"Zpracování holocaustu americkým autorem. Film s Meryl Streep (1982).",
+ pojmy:["román","ich-forma","retrospektiva","holocaust","tragédie","vina"]},
+
+{id:62,autor:"Coelho, Paulo",nazev:"Veronika se rozhodla zemřít",rok:"1998",zanr:"Roman",obdobi:"20",
+ info:"Filozofický román o smyslu života a šílenství.",
+ autor_info:"Paulo Coelho (narozen 1947) — brazilský spisovatel. Globální bestseller autor. Alchymista je jeho nejslavnější kniha.",
+ dej:"Mladá Veronika se pokusí o sebevraždu. Probudí se v psychiatrické léčebně Villete. Lékař jí sdělí, že brzy zemře na poškozené srdce. Veronika začne poprvé opravdu žít. Zjistí, že diagnóza byla lež — měla ji přinutit žít.",
+ postavy:"Veronika — nespokojená s životem, ale chce žít. Dr. Igor — lékař s experimentem.",
+ temata:"Smysl života a svoboda. Šílenství jako alternativní normalita. Konformita společnosti. Druhá šance.",
+ jazyk:"Er-forma. Přístupný styl. Filozofické dialogy.",
+ kontext:"Inspirováno Coelhovou vlastní zkušeností s psychiatrickou léčebnou.",
+ pojmy:["román","er-forma","existencialismus","filozofická próza","symbol"]},
+
+{id:63,autor:"Márquez, Gabriel García",nazev:"Láska za časů cholery",rok:"1985",zanr:"Roman",obdobi:"20",
+ info:"Velkolepý román o lásce překonávající čas.",
+ autor_info:"Gabriel García Márquez (1927–2014) — kolumbijský spisovatel. Nobelova cena 1982. Zakladatel magického realismu.",
+ dej:"Fermina zamítne lásku Florentina Arizy pro bohatého doktora Urbino. Florentino čeká 51 let. Po Urbinově smrti mu Fermina dá šanci. Na říční lodi plují pod vlajkou cholery — aby nebyli vyrušeni.",
+ postavy:"Florentino Ariza — romantický věrný čekatel. Fermina Daza — praktická žena. Dr. Urbino.",
+ temata:"Láska jako celoživotní oddanost. Věk a vášeň. Čas a paměť. Smrt.",
+ jazyk:"Magický realismus. Lyricko-epický styl. Detailní popisy tropického světa.",
+ kontext:"Kolumbie, přelom 19./20. stol. Márquez inspirován svými rodiči.",
+ pojmy:["román","magický realismus","er-forma","symbol","kompozice","lyrika"]},
+
+{id:64,autor:"Nabokov, Vladimir",nazev:"Lolita",rok:"1955",zanr:"Roman",obdobi:"20",
+ info:"Kontroverzní román o pedofilii — mistr narativní iluze.",
+ autor_info:"Vladimir Nabokov (1899–1977) — rusko-americký spisovatel. Psal rusky i anglicky. Lolita je jeho nejslavnější dílo.",
+ dej:"Humbert Humbert — evropský intelektuál — je fascinován 12letou Dolores Haze, přezdívanou Lolita. Stane se jejím otčímem a zneužívá ji. Lolita utíká s Quilty. Humbert zabije Quiltyho. Oba — Lolita i Humbert — brzy zemřou.",
+ postavy:"Humbert Humbert — nespolehlivý vypravěč, pedofil. Lolita — oběť, ale ne pasivní.",
+ temata:"Nespolehlivost vypravěče. Manipulace a zneužití. Estetizace zla. Zánik nevinnosti.",
+ jazyk:"Ich-forma. Virtuózní, bohatý jazyk. Humbert manipuluje čtenáře svým stylem.",
+ kontext:"50. léta, Amerika. Kontroverzní — odmítnut 5 americkými vydavatelstvími.",
+ pojmy:["román","ich-forma","nespolehlivý vypravěč","modernismus","perspektiva"]},
+
+{id:65,autor:"Brown, Dan",nazev:"Šifra mistra Leonarda",rok:"2003",zanr:"Thriller / dobrodružný román",obdobi:"20",
+ info:"Celosvětový bestseller o tajné historii křesťanství.",
+ autor_info:"Dan Brown (narozen 1964) — americký spisovatel. Šifra mistra Leonarda se stala nejrychleji prodávaným románem v historii.",
+ dej:"Profesor Robert Langdon je povolán na místo činu — kurátor Louvru je mrtev. Langdon s kryptografkou Sophie odhalují tajnou organizaci Prieuré de Sion střežící tajemství o svatém Grálu. Záhadný albínský mnich Silas je vrahovi pomocníkem.",
+ postavy:"Robert Langdon — profesor symbologie. Sophie Neveu — kryptografka. Silas — antagonista.",
+ temata:"Tajné dějiny křesťanství. Symboly a kódy. Řád vs. chaos. Identita.",
+ jazyk:"Rychlé kapitoly, cliffhangery. Er-forma. Symbologie jako motiv.",
+ kontext:"Populární thriller. Kontroverzní — Vatikán protestoval. Film s Tomem Hanksem.",
+ pojmy:["román","thriller","er-forma","symbol","kompozice"]},
+
+{id:66,autor:"Brown, Dan",nazev:"Andělé a démoni",rok:"2000",zanr:"Thriller",obdobi:"20",
+ info:"Předchůdce Šifry — Langdon ve Vatikánu.",
+ autor_info:"Dan Brown (narozen 1964). Viz Šifra mistra Leonarda.",
+ dej:"Robert Langdon je povolán do CERN — fyzik je mrtev. Stopa vede do Vatikánu — illumináti hrozí antimaterií. Langdon a Vittoria Vetráová závodí s časem. Kardinálové jsou unášeni. Kamarlengo je záporák.",
+ postavy:"Robert Langdon. Vittoria Vetrová. Kamarlengo Ventresca.",
+ temata:"Věda vs. víra. Tajné řády. Záchrana světa v 24 hodinách.",
+ jazyk:"Rychlé tempo, cliffhangery. Er-forma. Faktografické vsuvky.",
+ kontext:"Populární thriller. Kritika historické přesnosti — smíšená.",
+ pojmy:["román","thriller","er-forma","kompozice","symbol"]},
+
+{id:67,autor:"Tolkien, John Ronald Reuel",nazev:"Hobit",rok:"1937",zanr:"Fantasy",obdobi:"20",
+ info:"Zakladatelský text moderní fantasy literatury.",
+ autor_info:"J. R. R. Tolkien (1892–1973) — anglický spisovatel a filolog. Profesor na Oxfordu. Tvůrce Středozemě.",
+ dej:"Hobbit Bilbo Pytlík je přinucen čarodějem Gandalfem vydat se s trpaslíky na výpravu. Cíl: dobýt Osamělou horu zpět od draka Šmauga. Bilbo nachází Prsten. Závěr: bitva pěti armád.",
+ postavy:"Bilbo Pytlík — nedobrodružný hobbit, který se změní. Gandalf — čaroděj. Thorin Pavéza — vůdce trpaslíků. Glum — tajemná bytost.",
+ temata:"Hrdina z nepravděpodobného místa. Odvaha a přátelství. Dobro vs. zlo. Cesta jako proměna.",
+ jazyk:"Er-forma. Přátelský, přístupný styl. Bohatá mytologie.",
+ kontext:"Tolkien vytvořil kompletní mytologický svět. Základ moderní fantasy.",
+ pojmy:["fantasy","epika","er-forma","archetypální postava","mýtus","alegorie"]},
+
+{id:68,autor:"Lewis, Clive Staples",nazev:"Letopisy Narnie 1. díl",rok:"1950",zanr:"Fantasy / pohádka",obdobi:"20",
+ info:"Lev, čarodějnice a skříň — křesťanská alegorie v pohádkovém hávu.",
+ autor_info:"C. S. Lewis (1898–1963) — britský spisovatel a teolog. Přítel Tolkiena. Narnie je křesťanská alegorie.",
+ dej:"Čtyři sourozenci (Peter, Susan, Edmund, Lucy) se skryjí ve skříni a přejdou do Narnie. Narnie je pod kletbou Bílé čarodějnice — věčná zima bez Vánoc. Lev Aslan se obětuje a vzkřísí. Děti porazí čarodějnici.",
+ postavy:"Aslan — lev, symbol Krista. Bílá čarodějnice — zlo. Lucy — věří jako první. Edmund — zrádce, pak vykoupený.",
+ temata:"Dobro vs. zlo. Oběť a vzkříšení (křesťanství). Dětská víra a odvaha. Zima jako zlo.",
+ jazyk:"Pohádkový, přístupný styl. Alegorie — každá postava má symbolický smysl.",
+ kontext:"Brit. 50. léta. Lewis byl křesťanský apologeta — Narnie jsou alegorická Bible.",
+ pojmy:["fantasy","pohádka","alegorie","symbol","er-forma","křesťanská_symbolika"]},
+
+{id:69,autor:"Rowlingová, Joanne",nazev:"Harry Potter — Kámen mudrců",rok:"1997",zanr:"Fantasy",obdobi:"20",
+ info:"Nejprodávanější knižní série dějin — začátek Harryho příběhu.",
+ autor_info:"J. K. Rowling (narozena 1965) — britská autorka. Harry Potter napsal zatímco byla matka-samoživitelka na podpoře. 7dílná série prodána v miliardách výtisků.",
+ dej:"Sirotek Harry Potter se dozví, že je čaroděj. Nastoupí na školu Bradavice. Přátelí se s Ronem a Hermionou. Odhalí, že profesor Quirrell ukrývá záporáka Voldemorta. Zachrání Kámen mudrců.",
+ postavy:"Harry — sirotek, hrdina osudu. Ron — věrný přítel. Hermiona — inteligentní. Dumbledore — moudrý. Voldemort — absolutní zlo.",
+ temata:"Dobro vs. zlo. Přátelství a loajalita. Identita a osud. Odvaha.",
+ jazyk:"Er-forma. Přístupný, hravý styl. Bohatá světová mytologie.",
+ kontext:"Bestseller 90. let. Oživil zájem dětí o čtení. Filmy, parky.",
+ pojmy:["fantasy","er-forma","archetypální postava","alegorie","mýtus"]},
+
+{id:70,autor:"Nesbø, Jo",nazev:"Sněhulák",rok:"2007",zanr:"Kriminální thriller",obdobi:"20",
+ info:"Skandinávský noir — detektiv Harry Hole vs. sériový vrah.",
+ autor_info:"Jo Nesbø (narozen 1960) — norský spisovatel. Harry Hole je jeho hlavní postava — 12dílná série.",
+ dej:"Oslo. Po prvním sněhu mizí ženy — vždy u jejich domů stojí sněhulák. Detektiv Harry Hole vyšetřuje. Vrahův vzorec odhalí spojení s nevěrami. Záhadné dopisy vrahovi — ví Hole o vrahdách víc než přiznává?",
+ postavy:"Harry Hole — alkoholický detektiv, genialita. Rakel — jeho láska. Vrah — záhadný.",
+ temata:"Zlo ukryté v normálnosti. Détektiv jako traumatizovaná postava. Rodinné tajemství. Norská příroda.",
+ jazyk:"Er-forma. Chladný, přesný styl. Napínavé tempo. Severský noir.",
+ kontext:"Skandinávská detektivní literatura. Sněhulák je 7. díl série.",
+ pojmy:["thriller","detektivní literatura","er-forma","kompozice","noir"]},
+
+{id:71,autor:"Wolker, Jiří",nazev:"Těžká hodina",rok:"1922",zanr:"Básnická sbírka",obdobi:"20cz",
+ info:"Proletářská lyrika — sbírka plná sociální empatie.",
+ autor_info:"Jiří Wolker (1900–1924) — český básník. Zemřel v 24 letech na tuberkulózu. Jedna z nejtalentovanějších osobností české poezie.",
+ dej:"Sbírka básní. Balada o snu (alegorická). Balada o očích topičových. Básně plné empatie k chudým a dělníkům. Wolker vidí cestu k lepšímu světu přes sociální změnu.",
+ postavy:"Lyrický subjekt — mladý básník. Dělníci, chudí.",
+ temata:"Sociální empatie. Naděje a bolest. Smrt a mladost. Touha po spravedlnosti.",
+ jazyk:"Prostá, čistá lyrika. Balady. Obraznost vycházející z každodennosti.",
+ kontext:"Proletářská poezie. Poetismus. Meziválečná Česká republika.",
+ pojmy:["lyrika","balada","proletářská poezie","lyrický subjekt","symbol","strofa"]},
+
+{id:72,autor:"Seifert, Jaroslav",nazev:"Maminka",rok:"1954",zanr:"Básnická sbírka",obdobi:"20cz",
+ info:"Nejdojemnější sbírka českého nobelisty — oslava mateřství.",
+ autor_info:"Jaroslav Seifert (1901–1986) — český básník. Nobelova cena za literaturu 1984 — jediný Čech. Byl jedním ze zakladatelů Devětsilu.",
+ dej:"Cyklus básní věnovaných básníkově matce. Vzpomínky na dětství, Prahu, chudou čtvrť Žižkov. Smrt matky. Pomíjivost a láska.",
+ postavy:"Lyrický subjekt — básník. Maminka — idealizovaná postava.",
+ temata:"Mateřská láska. Domov a dětství. Pomíjivost. Praha jako domov.",
+ jazyk:"Melodický, zpěvný verš. Jemná obraznost. Každodenní detaily.",
+ kontext:"Česká poválečná poezie. Seifert tehdy kritizován za apolitičnost.",
+ pojmy:["lyrika","strofa","lyrický subjekt","apostrofa","metafora","elegance"]},
+
+{id:73,autor:"Kafka, Franz",nazev:"Proměna",rok:"1915",zanr:"Novela / absurdní próza",obdobi:"20cz",
+ info:"Nejslavnější text české literatury — symbol odcizení.",
+ autor_info:"Franz Kafka (1883–1924) — pražský německy píšící Žid. Zemřel na tuberkulózu. Přál si spálit svá díla — přítel Max Brod je zachránil. Zakladatel moderní absurdní literatury.",
+ dej:"Obchodní cestující Řehoř Samsa se jednoho rána probudí jako obří hmyz. Rodina se z počátku snaží přizpůsobit, ale postupně ho zavrhne. Řehoř zemře z hladu a opuštěnosti. Rodina s úlevou jede na výlet.",
+ postavy:"Řehoř Samsa — obží hmyz, živitel rodiny. Otec — autoritářský. Matka — bezmocná. Grete — sestra.",
+ temata:"Odcizení v rodině. Člověk jako ekonomická jednotka. Lidská důstojnost. Absurdita existence.",
+ jazyk:"Er-forma. Byrokratický, věcný styl popisující absurdní situaci. Kafka píše o nemožném, jako by bylo normální.",
+ kontext:"Pražský německý literární okruh. Kafka expresionista. Kafkaesce = typicky kafkovská situace.",
+ pojmy:["novela","absurdní drama","er-forma","expresionismus","odcizení","alegorie","symbol"]},
+
+{id:74,autor:"Olbracht, Ivan",nazev:"Nikola Šuhaj loupežník",rok:"1933",zanr:"Román / legenda",obdobi:"20cz",
+ info:"Sociálně-romantická legenda o karpatském zbojníkovi.",
+ autor_info:"Ivan Olbracht (1882–1952) — český prozaik. Žil v Podkarpatské Rusi a psal o jejích lidech.",
+ dej:"Nikola Šuhaj — skutečný zbojník z Karpat. Krade bohatým, dává chudým. Je nepolapitelný — má kouzelnou moc (přikryje ho smrkové jehličí). Nakonec ho zradí vlastní, zabijí ho bratři Derbakové.",
+ postavy:"Nikola Šuhaj — zbojník, lidový hrdina. Eržika — milá. Derbakové — zrádci.",
+ temata:"Zbojnická legenda. Sociální spravedlnost. Zrada. Mytizace skutečnosti.",
+ jazyk:"Mísení legendy a dokumentárnosti. Er-forma. Podkarpatský kolorit.",
+ kontext:"Česká meziválečná literatura. Olbracht byl v KSČ. Inspirováno skutečnými událostmi.",
+ pojmy:["román","er-forma","legenda","magický realismus","zbojnictví","symbol"]},
+
+{id:75,autor:"Hašek, Jaroslav",nazev:"Osudy dobrého vojáka Švejka",rok:"1921–1923",zanr:"Satirický román",obdobi:"20cz",
+ info:"Nejvýznamnější česká satirická próza — světová klasika.",
+ autor_info:"Jaroslav Hašek (1883–1923) — český spisovatel a bohém. Sám bojoval v 1. sv. válce, byl zajat Rusy. Zemřel nedokončiv román.",
+ dej:"Josef Švejk — prodavač psů, zdánlivě hloupý. Je odveden do armády (I. světová válka). Svou naivitou a poslušností zesměšňuje vojenský systém. Putuje na frontu, ale nikdy nedorazí — neustálé příhody.",
+ postavy:"Josef Švejk — 'blbec nebo génius'? Nadporučík Lukáš — Švejkův velitel. Kadet Biegler — kariérista.",
+ temata:"Satira na válku, armádu a stát. Pasivní odpor jako zbraň. Absurdita systémů. Češství.",
+ jazyk:"Er-forma. Hovorový jazyk, anekdoty, digresy. Satirický humor. Nedokončený.",
+ kontext:"1. světová válka a rozpad Rakouska-Uherska. Hašek nepsal z ideologie — z vlastní zkušenosti.",
+ pojmy:["román","satira","er-forma","humor","ironie","absurdní próza","parodie"]},
+
+{id:76,autor:"Čapek, Karel",nazev:"R.U.R.",rok:"1921",zanr:"Drama / sci-fi",obdobi:"20cz",
+ info:"Hra, která dala světu slovo ROBOT.",
+ autor_info:"Karel Čapek (1890–1938) — největší český prozaik a dramatik 20. stol. Přítel prezidenta Masaryka. Zemřel na zápal plic krátce po Mnichovu.",
+ dej:"Rossum's Universal Robots — továrna vyrábí umělé lidi (roboty). Roboti se vzbouří a vyhladí lidstvo. Přežije jen jeden člověk — Alquist. Dva roboti — Primus a Helena — projeví lidské city. Začátek nového světa.",
+ postavy:"Harry Domin — ředitel továrny. Helena Gloryová — humanistka. Roboti. Alquist — jediný přeživší.",
+ temata:"Technika vs. humanismus. Roboti jako metafora dělnické třídy. Zánik lidskosti. Naděje.",
+ jazyk:"Drama. Dialogy. Čapek vytváří slovo 'robot' (z robota = dřina).",
+ kontext:"Meziválečné Czechoslovensko. Čapek varuje před technickým pokrokem bez hodnot.",
+ pojmy:["drama","sci-fi","dialog","utopie","dystopie","alegorie","symbol"]},
+
+{id:77,autor:"Čapek, Karel",nazev:"Bílá nemoc",rok:"1937",zanr:"Drama",obdobi:"20cz",
+ info:"Antiválečné drama — varování před fašismem napsané rok před Mnichovem.",
+ autor_info:"Karel Čapek (1890–1938). Viz R.U.R.",
+ dej:"Záhadná Bílá nemoc zabíjí lidi přes 45 let. Dr. Galén najde lék, ale odmítne ho dát, dokud diktátor (Maršál) nezastaví válku. Maršál souhlasí — ale je ušlapán fanatickým davem svých příznivců. Galén s lékem umře.",
+ postavy:"Dr. Galén — humanista, drží lék jako rukojmí. Maršál — diktátor. Baron Krüg — zbrojař.",
+ temata:"Fašismus a válka. Zodpovědnost intelektuála. Moc vs. morálka. Marnost dobra.",
+ jazyk:"Drama. Dialogy. Silná alegorická vrstva.",
+ kontext:"1937, rok před Mnichovem. Čapek jasně míří na nacistické Německo.",
+ pojmy:["drama","alegorie","satira","dialog","antiválečná literatura","fašismus"]},
+
+{id:78,autor:"Čapek, Karel",nazev:"Matka",rok:"1938",zanr:"Drama",obdobi:"20cz",
+ info:"Čapkovo poslední drama — syn vs. válka.",
+ autor_info:"Karel Čapek (1890–1938). Viz R.U.R. Napsáno v roce Mnichova.",
+ dej:"Matka pět let přijímá smrt svých mužů — muže a čtyř synů — ve válkách a revolucích. Odmítá pustit posledního syna do války. Na konci, když nepřítel přichází do vlasti, sama mu podá zbraň.",
+ postavy:"Matka — symbol mateřství a vlastenectví. Synové — každý za jinou věc. Andrej — poslední syn.",
+ temata:"Mateřství vs. válka. Kdy je boj spravedlivý. Oběť pro vlast. Hodnoty.",
+ jazyk:"Drama. Duchové mrtvých mužů mluví. Silná emotivnost.",
+ kontext:"Rok Mnichova — Čapek volá po odporu. Matka podá zbraň = obrana vlasti je spravedlivá.",
+ pojmy:["drama","alegorie","dialog","vlastenectví","symbol","antiválečná literatura"]},
+
+{id:79,autor:"Čapek, Karel",nazev:"Krakatit",rok:"1924",zanr:"Utopický román",obdobi:"20cz",
+ info:"Román o vědci a nebezpečné síle výbušniny.",
+ autor_info:"Karel Čapek (1890–1938). Viz R.U.R.",
+ dej:"Inženýr Prokop objeví Krakatit — výbušninu obrovské síly. Je horečnatě nemocný, bloudí Evropou. Různé mocnosti ho chtějí získat. Prokop si uvědomí nebezpečí — svůj vynález nenechá nikomu.",
+ postavy:"Prokop — vědec, romantický hrdina. Různé ženy a záporáci.",
+ temata:"Zodpovědnost vědce za svůj vynález. Moc ničit. Etika vědy.",
+ jazyk:"Er-forma. Snové, horečnaté pasáže. Hybridní žánr (dobrodružství + utopie).",
+ kontext:"Meziválečná republika. Čapek varuje před zneužitím vědy.",
+ pojmy:["román","utopie","er-forma","alegorie","věda a etika"]},
+
+{id:80,autor:"Čapek, Karel",nazev:"Továrna na absolutno",rok:"1922",zanr:"Satirický román",obdobi:"20cz",
+ info:"Satirická utopie o stroji produkujícím Boha.",
+ autor_info:"Karel Čapek (1890–1938). Viz R.U.R.",
+ dej:"Vynálezce Marek sestrojí 'Karburátor' — spaluje hmotu a jako vedlejší produkt produkuje 'absolutno' (Boha). Absolutno se šíří světem — každý kdo přijde do styku, stává se fanatickým. Výsledkem je světová náboženská válka.",
+ postavy:"Marek — vynálezce. Bondy — podnikatel. Různé národy pod vlivem absolutna.",
+ temata:"Satira na náboženský fanatismus. Nebezpečí totálního ideálu. Humor.",
+ jazyk:"Er-forma. Novinový styl — střídají se zprávy. Satirická nadsázka.",
+ kontext:"Meziválečné Česko. Čapek paroduje ideologické vášně.",
+ pojmy:["román","satira","utopie","dystopie","er-forma","alegorie","ironie"]},
+
+{id:81,autor:"Čapek, Karel",nazev:"Válka s mloky",rok:"1936",zanr:"Satirický román",obdobi:"20cz",
+ info:"Nejambicióznější Čapkova satira — alegorie na fašismus a kolonialismus.",
+ autor_info:"Karel Čapek (1890–1938). Viz R.U.R.",
+ dej:"Námořník Bondy objeví v Pacifiku mloci — inteligentní tvorové. Lidstvo je začne vykořisťovat jako levnou pracovní sílu. Mloci se naučí lidský způsob myšlení, začnou se zbrojit. Nakonec ničí pevniny — rozkopávají kontinenty.",
+ postavy:"Kapitán van Toch — objevitel. Mloci — metafora utlačovaných. G. H. Bondy — kapitalista.",
+ temata:"Kolonialismus a jeho důsledky. Fašismus. Kapitalismus. Zánik civilizace ze sytosti.",
+ jazyk:"Dokumentární styl — novinové zprávy, vědecké citace. Satirická mozaika.",
+ kontext:"1936 — Čapek jasně míří na fašismus a nacismus.",
+ pojmy:["román","satira","er-forma","alegorie","dystopie","kolonialismus","symbol"]},
+
+{id:82,autor:"Poláček, Karel",nazev:"Bylo nás pět",rok:"1946",zanr:"Roman",obdobi:"20cz",
+ info:"Nejpopulárnější česká kniha pro děti — dětská perspektiva malého světa.",
+ autor_info:"Karel Poláček (1892–1945) — český spisovatel a novinář. Zahynul v koncentračním táboře. Bylo nás pět vydáno posmrtně.",
+ dej:"Petr Bajza — kluk z maloměsta (Rychnov nad Kněžnou). S kamarády — pětičlennou partou — zažívají letní dobrodružství. Hry, hádky, tajemství dospělých.",
+ postavy:"Petr Bajza — vypravěč, naivní. Čtyři kamarádi. Dospělí — nepochopitelný svět.",
+ temata:"Dětská perspektiva. Ztracený ráj dětství. Maloměsto. Humor a nostalgie.",
+ jazyk:"Ich-forma. Dětský naivní pohled — nerozumí dospělým. Hovorový jazyk.",
+ kontext:"Vyšlo posmrtně — Poláček zahynul v Osvětimi. Dojemná ironie — nostalgická kniha z tábora.",
+ pojmy:["román","ich-forma","humor","ironie","perspektiva","nostalgie"]},
+
+{id:83,autor:"Bass, Eduard",nazev:"Klapzubova jedenáctka",rok:"1922",zanr:"Roman",obdobi:"20cz",
+ info:"Pohádkový román o fotbalovém týmu Klapzubových synů.",
+ autor_info:"Eduard Bass (1888–1946) — český spisovatel, novinář a kabaretní umělec. Klapzubova jedenáctka je jeho nejznámější dílo.",
+ dej:"Otec Klapzuba vychovává 11 synů — každý hraje na konkrétní pozici. Tým cestuje světem a poráží všechny. Humoristické dobrodružství.",
+ postavy:"Otec Klapzuba — přísný, metodický. 11 synů.",
+ temata:"Sport jako kolektiv. Výchova a disciplína. Dobrodružství. Humor.",
+ jazyk:"Pohádkový humor. Er-forma. Lehký, zábavný styl.",
+ kontext:"Meziválečná republika. Popularita fotbalu v Čechách.",
+ pojmy:["román","er-forma","humor","pohádka","sportovní literatura"]},
+
+{id:84,autor:"Havlíček, Jaroslav",nazev:"Petrolejové lampy",rok:"1944",zanr:"Roman",obdobi:"20cz",
+ info:"Psychologický román o zmařeném životě pod patriarchátem.",
+ autor_info:"Jaroslav Havlíček (1896–1943) — český prozaik. Zemřel za okupace. Petrolejové lampy vydány posmrtně.",
+ dej:"Štěpa Vocílková — inteligentní dívka venkova — si vezme neurotického Josefa Lacinu. Manželství je peklem — Josef je slaboch, tyranizuje ji pasivně. Štěpa ho celý život obětavě ošetřuje. Nakonec zemře Josef, ne ona.",
+ postavy:"Štěpa — silná, obětavá. Josef Lacina — neurotický, slabý.",
+ temata:"Zmařený ženský život. Patriarchát. Psychologická závislost. Resignace.",
+ jazyk:"Er-forma. Psychologický realismus. Detailní vnitřní svět postav.",
+ kontext:"Česká meziválečná próza. Havlíček psychologický realista.",
+ pojmy:["román","er-forma","realismus","psychologická_kresba","tragédie","patriarchát"]},
+
+{id:85,autor:"Fuks, Ladislav",nazev:"Spalovač mrtvol",rok:"1967",zanr:"Roman",obdobi:"20cz",
+ info:"Psychologický román o procesu morálního zhroucení.",
+ autor_info:"Ladislav Fuks (1923–1994) — český prozaik. Gay, žil v izolaci. Psal o psychologii strachu a zla.",
+ dej:"Karel Kopfrkingl — zaměstnanec krematoria — je milující otec a muž. Postupně podlehne nacistické ideologii. Přesvědčí se, že 'osvobozuje' lidi od utrpení. Zabije syna (napůl Žida), ženu a přejde k nacistům.",
+ postavy:"Karel Kopfrkingl — zvrácený hrdina, vypravěč. Rodina — oběti.",
+ temata:"Banality zla. Nacismus jako psychická choroba. Postupný morální úpadek. Smrt jako 'osvobození'.",
+ jazyk:"Ich-forma — Kopfrkinglova pokrytecká řeč. Opakující se fráze (leitmotiv). Eufemismy pro smrt.",
+ kontext:"Česká literatura šedesátých let. Fuks reflektuje holocaust specifickým způsobem.",
+ pojmy:["román","ich-forma","leitmotiv","expresionismus","psychologická_kresba","alegorie","holocaust"]},
+
+{id:86,autor:"Hrabal, Bohumil",nazev:"Obsluhoval jsem anglického krále",rok:"1971 (vyšlo 1980)",zanr:"Roman",obdobi:"20cz",
+ info:"Epický příběh českých dějin 20. stol. očima vrchního číšníka.",
+ autor_info:"Bohumil Hrabal (1914–1997) — největší český prozaik 2. poloviny 20. stol. Psal v podivuhodném jazyce — 'hrabalovština'.",
+ dej:"Jan Dítě — malý číšník — stoupá kariérním žebříčkem, chce být milionář. Provede ho první republika, nacismus (ožení se s Němkou), komunismus. Nakonec přijde o vše. V závěru žije jako lesní holič — moudrý a svobodný.",
+ postavy:"Jan Dítě — malý hrdina velkých dějin. Skřivánek — anglický král (vzor). Různé ženy.",
+ temata:"Malý člověk ve velkých dějinách. Česká paměť 20. stol. Absurdita kariéry. Moudrost v tichatosti.",
+ jazyk:"Er-forma. Bohatý, barokní jazyk. Retardace — odbočky a příběhy v příběhu. Humor.",
+ kontext:"Česká literatura — zakázáno za normalizace. Hrabalův vrchol.",
+ pojmy:["román","er-forma","humor","groteska","retrospektiva","leitmotiv","epos"]},
+
+{id:87,autor:"Hrabal, Bohumil",nazev:"Ostře sledované vlaky",rok:"1965",zanr:"Novela",obdobi:"20cz",
+ info:"Slavná novela o dospívání za protektorátu.",
+ autor_info:"Bohumil Hrabal (1914–1997). Viz Obsluhoval jsem anglického krále.",
+ dej:"Miloš Hrma — mladý výpravčí na malé stanici za protektorátu. Řeší svůj sexuální problém (předčasná ejakulace). Na konci se pokusí vyhodit do povětří německý transport — a sám zahyne.",
+ postavy:"Miloš Hrma — naivní, hledající. Výpravčí Hubička — libertin. Dispečer Zedníček — kolaborant.",
+ temata:"Dospívání uprostřed války. Sex a smrt propleteny. Malý hrdinský čin. Absurdita války.",
+ jazyk:"Ich-forma. Hovorový jazyk. Hrabalův lyrický realismus. Humor i tragika.",
+ kontext:"Česká nová vlna — i film (1966, Oscar). Normalizace — Hrabal mohl psát.",
+ pojmy:["novela","ich-forma","realismus","humor","groteska","protiválečná literatura","černý humor"]},
+
+{id:88,autor:"Hrabal, Bohumil",nazev:"Postřižiny",rok:"1976",zanr:"Novela",obdobi:"20cz",
+ info:"Lyrická novela o radostném životě v malém pivovarském světě.",
+ autor_info:"Bohumil Hrabal (1914–1997). Viz Obsluhoval jsem anglického krále.",
+ dej:"Maryška — pivovarníkova žena — vypráví o životě v pivovaru. Strýc Pepin — Hrabalovo alter ego — přijíždí a vnáší chaos. Stříhání vlasů Maryšky = konec jedné éry. Lyrická idyla.",
+ postavy:"Maryška — živá, poetická. Strýc Pepin — povídavý, veselý. Francin — muž, pivovar.",
+ temata:"Radost z každodennosti. Čas a jeho plynutí. Ztráta idyly. Paměť.",
+ jazyk:"Ich-forma (Maryška). Poetický tok vědomí. Bohaté obrazy. Lyrická próza.",
+ kontext:"Normalizace. Hrabal nemohl publikovat — samizdatové texty.",
+ pojmy:["novela","ich-forma","lyrická próza","realismus","idyla","nostalgis"]},
+
+{id:89,autor:"Jirotka, Zdeněk",nazev:"Saturnin",rok:"1942",zanr:"Humoristický román",obdobi:"20cz",
+ info:"Nejoblíbenější česká humoristická próza — dokonalý sluha.",
+ autor_info:"Zdeněk Jirotka (1911–2003) — český humoristický spisovatel. Saturnin je jeho hlavní dílo.",
+ dej:"Vypravěč — nenápadný úředník — najme sluhu Saturnina. Saturnin je iniciativní a akční, ale katastrofálně překrucuje příkazy. Série humoristických situací: výprava do hor, lodní dobrodružství, cesta s dědečkem.",
+ postavy:"Saturnin — perfektní, ale nebezpečný sluha. Vypravěč — flegmatický. Dědeček — generál.",
+ temata:"Humor ze zvrácenosti situací. Britský humor. Komika perfekcionismu.",
+ jazyk:"Ich-forma. Suchý britský humor. Ironie. Deadpan styl.",
+ kontext:"Česká meziválečná/válečná humor literatura. Inspirováno Wodehousem.",
+ pojmy:["román","ich-forma","humor","ironie","komika situace","britský humor"]},
+
+{id:90,autor:"John, Radek",nazev:"Memento",rok:"1986",zanr:"Reportážní próza",obdobi:"20cz",
+ info:"Šokující dokumentární próza o drogové závislosti.",
+ autor_info:"Radek John (narozen 1954) — český spisovatel a politik. Memento vzniklo z autentických svědectví.",
+ dej:"Dokumentární příběhy drogově závislých v normalizačním Česku. Bezprostřední záznamy ze života na dně. Heroin, kriminalita, beznaděj.",
+ postavy:"Různí závislí — autentické příběhy.",
+ temata:"Závislost. Selhání společnosti. Beznaděj a hledání úniku. Autentičnost.",
+ jazyk:"Reportážní styl. Autentický hovorový jazyk. Bez příkras.",
+ kontext:"Normalizační Česko. Vydání bylo šokující — tabu téma.",
+ pojmy:["reportáž","dokumentární literatura","ich-forma","autentičnost"]},
+
+{id:91,autor:"Škvorecký, Josef",nazev:"Tankový prapor",rok:"1954 (vyšlo 1971 v exilu)",zanr:"Satirický román",obdobi:"20cz",
+ info:"Satirický román o absurditě komunistické armády.",
+ autor_info:"Josef Škvorecký (1924–2012) — český spisovatel, po 1968 v emigraci v Kanadě. Zakladatel exilového nakladatelství 68 Publishers.",
+ dej:"Poručík Danny Smiřický na vojně v tankové divizi. Absurdní vojenský život — politická školení, nesmyslné rozkazy, milostné pletky. Satira na komunistickou armádu.",
+ postavy:"Danny Smiřický — alter ego Škvoreckého. Různí vojáci a důstojníci.",
+ temata:"Absurdita komunismu. Satira na armádu. Česká identita. Svoboda vs. systém.",
+ jazyk:"Ich-forma. Hovorový jazyk. Humor a ironie.",
+ kontext:"Napsáno 1954, vydáno v exilu. V ČSSR zakázáno.",
+ pojmy:["román","ich-forma","satira","humor","ironie","absurdní próza"]},
+
+{id:92,autor:"Škvorecký, Josef",nazev:"Zbabělci",rok:"1958",zanr:"Roman",obdobi:"20cz",
+ info:"Kontroverzní román o konci války z pohledu 'zbabělce'.",
+ autor_info:"Josef Škvorecký (1924–2012). Viz Tankový prapor.",
+ dej:"Poslední dny války v Kostelci. Danny Smiřický — mladík, spíš se věnuje jazzu a ženám než revolučním hrdinstvím. Česká revoluce v posledních dnech války. Poučení: hrdinové nejsou hrdinové.",
+ postavy:"Danny Smiřický — antihrdina. Různé dívky. Němečtí vojáci.",
+ temata:"Antihrdina. Deziluze z revolučního mýtu. Jazz jako svoboda. Konec války bez romantiky.",
+ jazyk:"Ich-forma. Jazzový rytmus prózy. Hovorový jazyk. Ironie.",
+ kontext:"Vydáno 1958 — skandál v ČSSR. Škvorecký kritizován za deziluzi z revoluce.",
+ pojmy:["román","ich-forma","ironie","antihrdina","realismus","deziluze"]},
+
+{id:93,autor:"Kundera, Milan",nazev:"Směšné lásky",rok:"1963–1969",zanr:"Povídky",obdobi:"20cz",
+ info:"Sedm ironických povídek o lásce a hrách mezi muži a ženami.",
+ autor_info:"Milan Kundera (narozen 1929) — český spisovatel, od 1975 v emigraci ve Francii. Nesnesitelná lehkost bytí je jeho nejslavnější dílo.",
+ dej:"7 povídek: Nikdo se nebude smát (akademik si komplikuje situaci lží), Zlaté jablko věčné touhy (dva přátelé sbírají ženy), Hra na psychologii, Falzifikátor, Eduard a Bůh, Sympoziom, Doktor Havel po 20 letech.",
+ postavy:"Různí muži — intelektuálové, pokrytci. Ženy jako herní partner.",
+ temata:"Ironie lásky. Hry a lži mezi pohlavími. Volnost a odpovědnost. Absurdita erotiky.",
+ jazyk:"Er-forma. Ironický, inteligentní styl. Filozofické vsuvky.",
+ kontext:"Šedesátá léta, pražské jaro. Kundera emigroval po 1968.",
+ pojmy:["povídka","er-forma","ironie","humor","existencialismus","filozofická próza"]},
+
+{id:94,autor:"Pavel, Ota",nazev:"Smrt krásných srnců",rok:"1971",zanr:"Povídky / autobiografie",obdobi:"20cz",
+ info:"Autobiografické povídky o otci — rybolov a holocaust.",
+ autor_info:"Ota Pavel (1930–1973) — český sportovní novinář a spisovatel. Trpěl bipolární poruchou. Zemřel brzy. Smrt krásných srnců je jeho nejkrásnější dílo.",
+ dej:"Autobiografické povídky o tatínkovi — Leovi Pavlovi. Jak pašoval kapry, jak je deportovali Němci, jak přežili. Nejznámější: Smrt krásných srnců (tatínek loví ryby pro rodinu za války). Kapři pro Wehrmacht.",
+ postavy:"Tatínek Leo — romantický dobrodružný obchodník. Ota — vypravěč, syn.",
+ temata:"Rodičovská láska. Přežití v holocaustu. Příroda jako útočiště. Nostalgie.",
+ jazyk:"Poetická, lyrická próza. Ich-forma. Humor a smutek propleteny.",
+ kontext:"Česká literatura 70. let. Pavel psal v psychiatrické léčebně.",
+ pojmy:["povídka","autobiografie","ich-forma","lyrická próza","nostalgie","holocaust"]},
+
+{id:95,autor:"Otčenášek, Jan",nazev:"Romeo, Julie a tma",rok:"1958",zanr:"Roman",obdobi:"20cz",
+ info:"Milostný příběh na pozadí pražského povstání 1945.",
+ autor_info:"Jan Otčenášek (1924–1979) — český prozaik. Romeo, Julie a tma je jeho nejznámější dílo.",
+ dej:"Praha 1945. Student Pavel ukrývá Židovku Ester. Zamilují se. Ester je odhalena, Pavel ji chce zachránit. Ester zemře. Pavel bojuje v povstání.",
+ postavy:"Pavel — student, naivní hrdina. Ester — Židovka v úkrytu.",
+ temata:"Láska uprostřed války. Zodpovědnost a odvaha. Oběť. Konec iluzí.",
+ jazyk:"Er-forma. Lyrická, emotivní próza.",
+ kontext:"Česká poválečná literatura. Film (1960, Jiří Weiss).",
+ pojmy:["román","er-forma","realismus","lyrická próza","holocaust","láska a válka"]},
+
+{id:96,autor:"Kryl, Karel",nazev:"Kníška Karla Kryla",rok:"různá vydání",zanr:"Básnická sbírka / písňové texty",obdobi:"20cz",
+ info:"Poetické texty nejslavnějšího českého protestního písničkáře.",
+ autor_info:"Karel Kryl (1944–1994) — český písničkář, básník a ilustrátor. Emigroval po 1968. Bratříčku, zavírej vrátka a Morituri te salutant jsou jeho nejslavnější texty.",
+ dej:"Texty písní: Bratříčku, zavírej vrátka (1968), Morituri te salutant, Rakovina. Básně: lyrické, ironické, politické.",
+ postavy:"Lyrický subjekt — básník-emigrant. Vlast jako adresát.",
+ temata:"Svoboda a útlak. Ztráta domova. Ironie systému. Vzdor.",
+ jazyk:"Písňový verš. Ironie. Obrazná řeč. Jednoduchý, úderný styl.",
+ kontext:"Normalizace, srpen 1968. Kryl se vrátil do Čech po revoluci 1989.",
+ pojmy:["lyrika","politická literatura","ironie","symbol","apostrofa","písňový text"]},
+
+{id:97,autor:"Viewegh, Michal",nazev:"Báječná léta pod psa",rok:"1992",zanr:"Roman",obdobi:"20cz",
+ info:"Nejúspěšnější česká kniha 90. let — ironie socialismu.",
+ autor_info:"Michal Viewegh (narozen 1962) — nejprodávanější současný český prozaik. Báječná léta pod psa jsou jeho průlomové dílo.",
+ dej:"Rodina Kiliánů v době socialismu — od 60. do 80. let. Otec — neúspěšný spisovatel. Syn Kvido — ironický pohled na dobu. Srpen 1968, normalizace, každodenní absurdity.",
+ postavy:"Kvido — vypravěč, alter ego Viewegha. Otec — spisovatel. Matka.",
+ temata:"Ironie socialismu. Česká mentalita. Rodinná soudržnost. Humor jako únik.",
+ jazyk:"Ich-forma (Kvido). Ironický, hravý styl. Postmoderní sebereflexe.",
+ kontext:"Vyšlo rok po revoluci — okamžitý bestseller. Film (1997, Jan Hřebejk).",
+ pojmy:["román","ich-forma","ironie","postmodernismus","humor","satirická próza"]},
+
+{id:98,autor:"Šabach, Petr",nazev:"Občanský průkaz",rok:"2006",zanr:"Roman",obdobi:"20cz",
+ info:"Nostalgie za mládím 70. let.",
+ autor_info:"Petr Šabach (1951–2019) — český spisovatel. Psal o normalizační Praze.",
+ dej:"Čtyři přátelé v normalizační Praze 70. let. Puberta, první lásky, fotbal, rock'n'roll. Srpen 1968 jako zlom. Nostalgická rekonstrukce doby.",
+ postavy:"Čtyři přátelé — typy generace. Otcové — symbolizují dobu.",
+ temata:"Normalizace zevnitř. Mládí a přátelství. Ztracený čas.",
+ jazyk:"Er-forma. Nostalgický, hřejivý tón. Hovorový jazyk.",
+ kontext:"Film (2010, Roman Vávra). Šabach — kronikář normalizace.",
+ pojmy:["román","er-forma","nostalgie","realismus","humor","normalizace"]},
+
+{id:99,autor:"Šabach, Petr",nazev:"Hovno hoří",rok:"1994",zanr:"Roman",obdobi:"20cz",
+ info:"Humoristická próza o divokých 90. letech.",
+ autor_info:"Petr Šabach (1951–2019). Viz Občanský průkaz.",
+ dej:"90. léta — pád komunismu, divoký kapitalismus. Hrdinové předchozích knih v nové době. Chaos a humor přechodu.",
+ postavy:"Typové postavy normalizace v nové době.",
+ temata:"Přechod do kapitalismu. Chaos a příležitost. Česká mentalita.",
+ jazyk:"Hovorový, živý jazyk. Humor. Er-forma.",
+ kontext:"Post-revolucní Česko. Šabach dokumentuje přechod.",
+ pojmy:["román","er-forma","humor","satira","postmodernismus"]},
+
+{id:100,autor:"Boček, Evžen",nazev:"Poslední aristokratka",rok:"2012",zanr:"Roman",obdobi:"20cz",
+ info:"Humoristický román o aristokratce v socialismu.",
+ autor_info:"Evžen Boček — český spisovatel.",
+ dej:"Stará šlechtična přežívá v socialistickém Česku. Humoristické střety staré šlechty s novou dobou.",
+ postavy:"Aristokratka — symbol starého světa.",
+ temata:"Střet světů. Šlechta v komunismu. Humor z kontrastu.",
+ jazyk:"Humoristická próza. Er-forma.",
+ kontext:"Česká populární literatura.",
+ pojmy:["román","er-forma","humor","satira","kontrast"]},
+
+{id:101,autor:"Boučková, Tereza",nazev:"Rok kohouta",rok:"2008",zanr:"Autobiografický román",obdobi:"20cz",
+ info:"Autobiografický příběh o adopci a mateřství.",
+ autor_info:"Tereza Boučková (narozena 1957) — česká prozaička a scenáristka. Dcera Pavla Kohouta.",
+ dej:"Boučková adoptovala dva romské chlapce. Autobiografický příběh boje s institucemi, selháním adopce, vlastní krizí.",
+ postavy:"Autorka — matka. Adoptovaní chlapci.",
+ temata:"Mateřství a jeho limity. Adopce. Rasismus systému. Selhání a vina.",
+ jazyk:"Ich-forma. Autobiografická próza. Přímý, bolestný styl.",
+ kontext:"Česká současná literatura. Kontroverzní — otevřeně o chybách.",
+ pojmy:["román","autobiografie","ich-forma","dokumentární literatura"]},
+
+{id:102,autor:"Mornštajnová, Alena",nazev:"Hana",rok:"2017",zanr:"Roman",obdobi:"20cz",
+ info:"Bestseller o třech generacích a rodinném tajemství.",
+ autor_info:"Alena Mornštajnová (narozena 1963) — česká prozaička. Hana je její nejúspěšnější román.",
+ dej:"Tři generace jedné rodiny — Hana (přeživší holocaust), její dcera, vnučka. Odhalování rodinné traumy. Šoa a jeho dědičné účinky.",
+ postavy:"Hana — přeživší. Mladé generace odkrývají minulost.",
+ temata:"Transgenerační trauma. Holocaust v české rodině. Paměť a zapomínání.",
+ jazyk:"Er-forma. Více časových rovin. Srozumitelná, čtivá próza.",
+ kontext:"Současná česká literatura, bestseller.",
+ pojmy:["román","er-forma","retrospektiva","holocaust","kompozice","rodina"]},
+
+{id:103,autor:"Tučková, Kateřina",nazev:"Žítkovské bohyně",rok:"2012",zanr:"Roman",obdobi:"20cz",
+ info:"Román o moravských čarodějnicích a komunistickém pronásledování.",
+ autor_info:"Kateřina Tučková (narozena 1980) — česká prozaička a kurátorka. Žítkovské bohyně jsou jejím průlomovým dílem.",
+ dej:"Dora Idesová pátrá po osudu žítkovských bohyní — léčitelek z Bílých Karpat. Komunistický režim je pronásledoval. Příběh kombinuje historii s přítomností.",
+ postavy:"Dora — pátrající. Bohyně — léčitelky. Komunistický aparát.",
+ temata:"Ztracená tradice. Pronásledování komunismem. Ženská síla. Paměť místa.",
+ jazyk:"Er-forma. Dokumentárně-beletristický styl. Moravský kolorit.",
+ kontext:"Moravské Žítkovice — skutečné místo. Bestseller, divadelní adaptace.",
+ pojmy:["román","er-forma","dokumentární literatura","magický realismus","žena a společnost"]},
+
+{id:104,autor:"Legátová, Kveta",nazev:"Želary",rok:"2001",zanr:"Povídky",obdobi:"20cz",
+ info:"Soubor povídek o životě v izolované karpatské vesnici za války.",
+ autor_info:"Kveta Legátová (1919–2012), vlastním jménem Věra Hofmanová. Povídky psala celý život, vydala je až ve vysokém věku.",
+ dej:"Povídky ze slovenské horské vesnice Želary za 2. sv. války. Příběhy prostých lidí — lékařka z města se skryje ve vesnici, provdá se za drsného horala Jozefa.",
+ postavy:"Eliška / Hana — lékařka. Jozef — horalský muž.",
+ temata:"Jednoduchý život v izolaci. Přirozená lidskost. Válka v zákulisí. Láska přes rozdíly.",
+ jazyk:"Lyrická próza. Moravský/slovenský kolorit. Er-forma.",
+ kontext:"Vydáno 2001. Film (2003, Ondřej Trojan — nominace na Oscara).",
+ pojmy:["povídka","er-forma","lyrická próza","realismus","válečná literatura"]},
+
+{id:105,autor:"Soukupová, Petra",nazev:"Nejlepší pro všechny",rok:"2017",zanr:"Roman",obdobi:"20cz",
+ info:"Psychologický rodinný thriller o dysfunkční rodině.",
+ autor_info:"Petra Soukupová (narozena 1982) — česká prozaička a scenáristka. Píše psychologicky zaměřenou prózu.",
+ dej:"Rodinný výlet se změní v noční můru — záhadné zmizení dítěte. Každý člen rodiny vypráví svou verzi. Odhalení rodinných tajemství a dysfunkce.",
+ postavy:"Rodinní příslušníci — každý jiná perspektiva.",
+ temata:"Rodinná dysfunkce. Komunikace a mlčení. Vina. Subjektivní pravda.",
+ jazyk:"Více vypravěčů. Ich-forma. Napínavé tempo. Psychologická kresba.",
+ kontext:"Současná česká literatura.",
+ pojmy:["román","ich-forma","perspektiva","psychologická_kresba","thriller","kompozice"]}
+];
+
+// Pomocné mapy
+const PERIOD_LABELS={
+  "do18":"Světová a česká literatura do konce 18. století",
+  "19":"Světová a česká literatura 19. století",
+  "20":"Světová literatura 20. a 21. století",
+  "20cz":"Česká literatura 20. a 21. století"
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// API
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function apiCall(params){
+  return new Promise((res,rej)=>{
+    const cb="cb_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+    const s=document.createElement("script");
+    window[cb]=d=>{delete window[cb];s.remove();res(d);};
+    const qs=Object.entries(params).map(([k,v])=>k+"="+encodeURIComponent(v)).join("&");
+    s.src=API_URL+"?"+qs+"&callback="+cb;
+    s.onerror=()=>{delete window[cb];s.remove();rej(new Error("Network error"));};
+    document.head.appendChild(s);
+    setTimeout(()=>{if(window[cb]){delete window[cb];s.remove();rej(new Error("Timeout"));}},15000);
+  });
+}
+async function safe(p){try{return await p;}catch(e){console.warn(e);return null;}}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// UTILITY KOMPONENTY
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function BrandLogo({size=18}){
+  return <div style={{...T.t,fontSize:size,fontWeight:300,letterSpacing:"0.25em",color:C.ivory}}>
+    <span style={{fontWeight:700}}>MA</span>TURITA
+  </div>;
+}
+
+function Spin(){
+  return <div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:40}}>
+    <div style={{width:20,height:20,border:"2px solid "+C.border,borderTopColor:C.merlot,
+      borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+  </div>;
+}
+
+function Card({children,sx,onClick}){
+  return <div onClick={onClick} style={{background:C.s1,border:"1px solid "+C.border,
+    borderRadius:4,cursor:onClick?"pointer":"default",...sx}}>{children}</div>;
+}
+
+function Btn({ch,onClick,v,sx,disabled}){
+  const bg=v==="g"?"transparent":v==="d"?C.s2:C.merlot;
+  const col=v==="g"?C.dim:C.ivory;
+  const brd=v==="g"?"1px solid "+C.border:v==="d"?"1px solid "+C.border:"none";
+  return <button onClick={onClick} disabled={disabled}
+    style={{...T.m,fontSize:10,borderRadius:3,padding:"8px 16px",cursor:disabled?"not-allowed":"pointer",
+      letterSpacing:"0.06em",background:bg,color:disabled?C.dim:col,border:brd,opacity:disabled?0.5:1,...sx}}>
+    {ch}
+  </button>;
+}
+
+function Inp({v,onChange,placeholder,type,sx}){
+  return <input value={v} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""}
+    type={type||"text"} style={{width:"100%",background:C.s2,border:"1px solid "+C.border,
+    borderRadius:3,padding:"8px 10px",color:C.ivory,...T.m,fontSize:11,outline:"none",
+    boxSizing:"border-box",...sx}}/>;
+}
+
+function SH({c,sx}){
+  return <div style={{...T.t,fontSize:13,fontWeight:600,letterSpacing:"0.12em",
+    color:C.hi,marginBottom:8,textTransform:"uppercase",...sx}}>{c}</div>;
+}
+
+function Pill({c,color}){
+  return <span style={{...T.m,fontSize:9,padding:"2px 8px",borderRadius:10,
+    background:color+"22",color,border:"1px solid "+color+"44"}}>{c}</span>;
+}
+
+// Tooltip pro odborné pojmy
+function Term({word}){
+  const def=GLOSAR[word.toLowerCase()]||GLOSAR[word];
+  if(!def) return <span style={{color:C.merlot}}>{word}</span>;
+  return <span className="tooltip-wrap">
+    <span className="tooltip-term">{word}</span>
+    <span className="tooltip-box">{def}</span>
+  </span>;
+}
+
+// Renderuje text s automatickými tooltip linky na pojmy ze glosáře
+function AutoTerm({text}){
+  if(!text) return null;
+  const terms=Object.keys(GLOSAR).sort((a,b)=>b.length-a.length);
+  let parts=[text];
+  terms.forEach(term=>{
+    const newParts=[];
+    parts.forEach(part=>{
+      if(typeof part!=="string"){newParts.push(part);return;}
+      const lower=part.toLowerCase();
+      const idx=lower.indexOf(term.toLowerCase());
+      if(idx===-1){newParts.push(part);return;}
+      if(idx>0) newParts.push(part.slice(0,idx));
+      newParts.push(<Term key={term+idx} word={part.slice(idx,idx+term.length)}/>);
+      if(idx+term.length<part.length) newParts.push(part.slice(idx+term.length));
+      else newParts.push("");
+    });
+    parts=newParts;
+  });
+  return <>{parts}</>;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// VIEWS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// LOGIN VIEW
+function LoginView({onLogin}){
+  const [step,setStep]=useState("class"); // class | name | pin
+  const [trida,setTrida]=useState("");
+  const [jmeno,setJmeno]=useState("");
+  const [pin,setPin]=useState("");
+  const [customTrida,setCustomTrida]=useState("");
+  const [customJmeno,setCustomJmeno]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [err,setErr]=useState("");
+
+  const tridy=["G4","A4","B4","C4","Jiná třída"];
+
+  async function handlePinSubmit(){
+    if(pin.length<4){setErr("PIN musí mít alespoň 4 číslice");return;}
+    setLoading(true);setErr("");
+    const finalTrida=trida==="Jiná třída"?customTrida:trida;
+    const finalJmeno=trida==="Jiná třída"?customJmeno:jmeno;
+    const res=await safe(apiCall({action:"read",type:"users"}));
+    const users=res&&res.data?res.data:[];
+    const existing=users.find(u=>u.jmeno===finalJmeno&&u.trida===finalTrida);
+    if(existing){
+      if(existing.pin!==pin){setErr("Špatný PIN");setLoading(false);return;}
+      onLogin({jmeno:finalJmeno,trida:finalTrida,vybrane:existing.vybrane?JSON.parse(existing.vybrane):[]});
+    } else {
+      const newUser={jmeno:finalJmeno,trida:finalTrida,pin,vybrane:"[]"};
+      await safe(apiCall({action:"write",type:"users",data:JSON.stringify(newUser)}));
+      onLogin({jmeno:finalJmeno,trida:finalTrida,vybrane:[]});
+    }
+    setLoading(false);
+  }
+
+  const playBeep=()=>{
+    try{
+      const ac=new(window.AudioContext||window.webkitAudioContext)();
+      const o=ac.createOscillator();const g=ac.createGain();
+      o.connect(g);g.connect(ac.destination);
+      o.frequency.value=880;g.gain.setValueAtTime(0.1,ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.1);
+      o.start();o.stop(ac.currentTime+0.1);
+    }catch(e){}
+  };
+
+  const addPin=(n)=>{
+    if(pin.length<8){playBeep();setPin(p=>p+n);}
+  };
+
+  return <div className="anim-fade" style={{minHeight:"100vh",display:"flex",flexDirection:"column",
+    alignItems:"center",justifyContent:"center",padding:24,background:C.bg}}>
+    <div style={{marginBottom:32}}><BrandLogo size={32}/></div>
+    <div style={{...T.m,fontSize:9,color:C.dim,letterSpacing:"0.2em",textTransform:"uppercase",marginBottom:32}}>
+      Čtenářský deník — Maturita 2026
+    </div>
+
+    {step==="class" && <div style={{width:"100%",maxWidth:360}} className="anim-slide">
+      <SH c="Vyber třídu"/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {tridy.map(t=><button key={t} onClick={()=>{setTrida(t);setStep(t==="Jiná třída"?"name_custom":"name");}}
+          style={{...T.m,fontSize:11,padding:"12px 8px",background:C.s1,border:"1px solid "+C.border,
+          borderRadius:4,color:C.ivory,cursor:"pointer",letterSpacing:"0.05em"}}>{t}</button>)}
+      </div>
+    </div>}
+
+    {step==="name" && <div style={{width:"100%",maxWidth:360}} className="anim-slide">
+      <SH c={"Třída "+trida+" — Zadej jméno"}/>
+      <Inp v={jmeno} onChange={setJmeno} placeholder="Jméno a příjmení"/>
+      <div style={{display:"flex",gap:8,marginTop:12}}>
+        <Btn ch="Zpět" onClick={()=>setStep("class")} v="g"/>
+        <Btn ch="Pokračovat" onClick={()=>{if(jmeno.trim())setStep("pin");else setErr("Zadej jméno");}} sx={{flex:1}}/>
+      </div>
+      {err&&<div style={{...T.m,fontSize:10,color:C.merlot,marginTop:8}}>{err}</div>}
+    </div>}
+
+    {step==="name_custom" && <div style={{width:"100%",maxWidth:360}} className="anim-slide">
+      <SH c="Jiná třída — Vyplň údaje"/>
+      <Inp v={customTrida} onChange={setCustomTrida} placeholder="Název třídy (např. D3)"/>
+      <div style={{height:8}}/>
+      <Inp v={customJmeno} onChange={setCustomJmeno} placeholder="Jméno a příjmení"/>
+      <div style={{display:"flex",gap:8,marginTop:12}}>
+        <Btn ch="Zpět" onClick={()=>setStep("class")} v="g"/>
+        <Btn ch="Pokračovat" onClick={()=>{if(customTrida.trim()&&customJmeno.trim())setStep("pin");else setErr("Vyplň vše");}} sx={{flex:1}}/>
+      </div>
+      {err&&<div style={{...T.m,fontSize:10,color:C.merlot,marginTop:8}}>{err}</div>}
+    </div>}
+
+    {step==="pin" && <div style={{width:"100%",maxWidth:280}} className="anim-slide">
+      <div style={{...T.m,fontSize:11,color:C.hi,marginBottom:4,textAlign:"center"}}>
+        {trida==="Jiná třída"?customJmeno:jmeno}
+      </div>
+      <SH c="Zadej PIN (min. 4 číslice)" sx={{textAlign:"center"}}/>
+      <div style={{display:"flex",justifyContent:"center",gap:6,marginBottom:20}}>
+        {Array.from({length:Math.max(4,pin.length)}).map((_,i)=>
+          <div key={i} style={{width:12,height:12,borderRadius:"50%",
+            background:i<pin.length?C.merlot:C.border}}/>)}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+        {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((n,i)=><button key={i}
+          onClick={()=>{if(n==="⌫")setPin(p=>p.slice(0,-1));else if(n!=="")addPin(String(n));}}
+          style={{...T.t,fontSize:22,fontWeight:400,padding:"14px 0",background:n===""?"transparent":C.s1,
+          border:n===""?"none":"1px solid "+C.border,borderRadius:4,color:C.ivory,cursor:"pointer"}}>
+          {n}
+        </button>)}
+      </div>
+      <div style={{display:"flex",gap:8,marginTop:16}}>
+        <Btn ch="Zpět" onClick={()=>setStep("name")} v="g"/>
+        <Btn ch={loading?"...":"Vstoupit"} onClick={handlePinSubmit} disabled={loading||pin.length<4} sx={{flex:1}}/>
+      </div>
+      {err&&<div style={{...T.m,fontSize:10,color:C.merlot,marginTop:8,textAlign:"center"}}>{err}</div>}
+    </div>}
+  </div>;
+}
+
+// GLOSÁŘ VIEW
+function GlosarView(){
+  const pojmy=Object.entries(GLOSAR).sort((a,b)=>a[0].localeCompare(b[0],"cs"));
+  const [search,setSearch]=useState("");
+  const filtered=pojmy.filter(([k])=>k.toLowerCase().includes(search.toLowerCase()));
+  return <div className="anim-fade">
+    <div style={{...T.t,fontSize:22,fontWeight:600,letterSpacing:"0.1em",color:C.ivory,marginBottom:4}}>
+      GLOSÁŘ POJMŮ
+    </div>
+    <div style={{...T.m,fontSize:10,color:C.dim,marginBottom:16}}>Klikni na pojmy v rozborech pro jejich vysvětlení.</div>
+    <Inp v={search} onChange={setSearch} placeholder="Hledat pojem..."/>
+    <div style={{marginTop:16,display:"flex",flexDirection:"column",gap:6}}>
+      {filtered.map(([k,v])=><div key={k} style={{background:C.s1,border:"1px solid "+C.border,
+        borderRadius:4,padding:"10px 12px"}}>
+        <div style={{...T.t,fontSize:15,fontWeight:600,color:C.merlot,marginBottom:4}}>{k}</div>
+        <div style={{...T.m,fontSize:11,color:C.hi,lineHeight:1.6}}>{v}</div>
+      </div>)}
+    </div>
+  </div>;
+}
+
+// ROZBOR VIEW
+function RozborView({book,user,onBack,vybrane,onToggle}){
+  const isVybrana=vybrane.includes(book.id);
+  const sections=[
+    {label:"O autorovi",content:book.autor_info},
+    {label:"Děj",content:book.dej},
+    {label:"Postavy",content:book.postavy},
+    {label:"Témata a myšlenky",content:book.temata},
+    {label:"Jazyk a styl",content:book.jazyk},
+    {label:"Historický a literární kontext",content:book.kontext},
+  ];
+  return <div className="anim-fade">
+    <button onClick={onBack} style={{...T.m,fontSize:10,color:C.dim,background:"none",border:"none",
+      cursor:"pointer",padding:"0 0 16px 0",letterSpacing:"0.06em"}}>← Zpět</button>
+
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:16,flexWrap:"wrap"}}>
+      <div>
+        <div style={{...T.t,fontSize:28,fontWeight:600,letterSpacing:"0.05em",color:C.ivory,lineHeight:1.1}}>
+          {book.nazev}
+        </div>
+        <div style={{...T.m,fontSize:12,color:C.hi,marginTop:4}}>{book.autor}</div>
+      </div>
+      <Btn ch={isVybrana?"✓ V mém seznamu":"+ Přidat do seznamu"}
+        onClick={()=>onToggle(book.id)} v={isVybrana?"d":"p"}/>
+    </div>
+
+    {/* Základní info tabulka */}
+    <div style={{background:C.s1,border:"1px solid "+C.border,borderRadius:4,padding:12,marginBottom:16}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {[["Rok",book.rok],["Žánr",book.zanr],["Období",PERIOD_LABELS[book.obdobi]||book.obdobi]].map(([k,v])=>
+          <div key={k}>
+            <div style={{...T.m,fontSize:9,color:C.dim,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:2}}>{k}</div>
+            <div style={{...T.m,fontSize:11,color:C.ivory}}>{v}</div>
+          </div>)}
+      </div>
+    </div>
+
+    {/* Odborné pojmy */}
+    {book.pojmy&&book.pojmy.length>0&&<div style={{marginBottom:16}}>
+      <div style={{...T.m,fontSize:9,color:C.dim,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>
+        Klíčové pojmy (najeď myší pro vysvětlení)
+      </div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+        {book.pojmy.map(p=><span key={p} className="tooltip-wrap" style={{...T.m,fontSize:10,
+          padding:"4px 10px",borderRadius:10,background:C.merlot+"22",color:C.merlot,
+          border:"1px solid "+C.merlot+"44",cursor:"help"}}>
+          {p}
+          {GLOSAR[p]&&<span className="tooltip-box">{GLOSAR[p]}</span>}
+        </span>)}
+      </div>
+    </div>}
+
+    {/* Stručný přehled */}
+    <div style={{background:C.s2,border:"1px solid "+C.border,borderRadius:4,padding:12,marginBottom:16}}>
+      <div style={{...T.m,fontSize:9,color:C.dim,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Stručný přehled</div>
+      <div style={{...T.m,fontSize:11,color:C.ivory,lineHeight:1.7}}><AutoTerm text={book.info}/></div>
+    </div>
+
+    {/* Sekce rozboru */}
+    {sections.map(sec=><div key={sec.label} style={{marginBottom:16}}>
+      <div style={{...T.t,fontSize:16,fontWeight:600,letterSpacing:"0.08em",color:C.hi,
+        marginBottom:8,textTransform:"uppercase",borderBottom:"1px solid "+C.border,paddingBottom:4}}>
+        {sec.label}
+      </div>
+      <div style={{...T.m,fontSize:11,color:C.ivory,lineHeight:1.8}}>
+        <AutoTerm text={sec.content}/>
+      </div>
+    </div>)}
+  </div>;
+}
+
+// KNIHOVNA VIEW
+function KnihovnaView({user,vybrane,onToggle,onOpenBook}){
+  const [search,setSearch]=useState("");
+  const [filterPeriod,setFilterPeriod]=useState("vse");
+
+  const filtered=BOOKS.filter(b=>{
+    const matchSearch=search===""||
+      b.nazev.toLowerCase().includes(search.toLowerCase())||
+      b.autor.toLowerCase().includes(search.toLowerCase());
+    const matchPeriod=filterPeriod==="vse"||b.obdobi===filterPeriod;
+    return matchSearch&&matchPeriod;
+  });
+
+  const periods=[
+    {id:"vse",label:"Vše"},
+    {id:"do18",label:"Do 18. stol."},
+    {id:"19",label:"19. stol."},
+    {id:"20",label:"Světová 20.–21."},
+    {id:"20cz",label:"Česká 20.–21."},
+  ];
+
+  const selectedCount=vybrane.length;
+
+  return <div className="anim-fade">
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+      <div>
+        <div style={{...T.t,fontSize:22,fontWeight:600,letterSpacing:"0.1em",color:C.ivory}}>KNIHOVNA</div>
+        <div style={{...T.m,fontSize:10,color:C.dim}}>{BOOKS.length} knih · tvůj seznam: {selectedCount}/20</div>
+      </div>
+      {selectedCount>=20&&<div style={{...T.m,fontSize:9,color:C.merlot,
+        background:C.merlot+"11",border:"1px solid "+C.merlot+"33",borderRadius:4,padding:"4px 10px"}}>
+        Máš 20 knih
+      </div>}
+    </div>
+
+    <Inp v={search} onChange={setSearch} placeholder="Hledat autora nebo název..."/>
+
+    <div style={{display:"flex",gap:6,marginTop:10,marginBottom:16,flexWrap:"wrap"}}>
+      {periods.map(p=><button key={p.id} onClick={()=>setFilterPeriod(p.id)}
+        style={{...T.m,fontSize:9,padding:"5px 10px",borderRadius:3,cursor:"pointer",
+          background:filterPeriod===p.id?C.merlot:"transparent",
+          color:filterPeriod===p.id?C.ivory:C.dim,
+          border:"1px solid "+(filterPeriod===p.id?C.merlot:C.border)}}>
+        {p.label}
+      </button>)}
+    </div>
+
+    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+      {filtered.map(b=>{
+        const isV=vybrane.includes(b.id);
+        return <div key={b.id} style={{background:isV?C.merlot+"0a":C.s1,
+          border:"1px solid "+(isV?C.merlot+"44":C.border),borderRadius:4,
+          padding:"10px 12px",display:"flex",alignItems:"center",gap:12}}>
+          <div style={{flex:1,cursor:"pointer"}} onClick={()=>onOpenBook(b)}>
+            <div style={{...T.t,fontSize:16,fontWeight:600,color:C.ivory,lineHeight:1}}>{b.nazev}</div>
+            <div style={{...T.m,fontSize:10,color:C.dim,marginTop:2}}>{b.autor} · {b.rok}</div>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <Pill c={PERIOD_LABELS[b.obdobi]?.split(" ").slice(-2).join(" ")||b.obdobi}
+              color={b.obdobi==="do18"?"#5c8a7a":b.obdobi==="19"?"#7a6c5c":b.obdobi==="20"?"#5c6c8a":"#7a5c7a"}/>
+            <button onClick={()=>onToggle(b.id)}
+              style={{...T.m,fontSize:9,padding:"4px 10px",borderRadius:3,cursor:"pointer",
+                background:isV?C.merlot+"33":"transparent",color:isV?C.merlot:C.dim,
+                border:"1px solid "+(isV?C.merlot+"55":C.border)}}>
+              {isV?"✓":"+ Přidat"}
+            </button>
+          </div>
+        </div>;
+      })}
+    </div>
+  </div>;
+}
+
+// MŮJ SEZNAM VIEW
+function MujSeznamView({user,vybrane,onToggle,onOpenBook}){
+  const moje=BOOKS.filter(b=>vybrane.includes(b.id));
+  const periods=["do18","19","20","20cz"];
+
+  return <div className="anim-fade">
+    <div style={{...T.t,fontSize:22,fontWeight:600,letterSpacing:"0.1em",color:C.ivory,marginBottom:4}}>
+      MŮJ SEZNAM
+    </div>
+    <div style={{...T.m,fontSize:10,color:C.dim,marginBottom:20}}>
+      {moje.length}/20 knih · {user.jmeno} · {user.trida}
+    </div>
+
+    {moje.length===0&&<div style={{textAlign:"center",padding:48}}>
+      <div style={{...T.m,fontSize:11,color:C.dim}}>Zatím nemáš žádné knihy.</div>
+      <div style={{...T.m,fontSize:10,color:C.dim,marginTop:4}}>Přidej je v Knihovně.</div>
+    </div>}
+
+    {periods.map(period=>{
+      const bks=moje.filter(b=>b.obdobi===period);
+      if(bks.length===0) return null;
+      return <div key={period} style={{marginBottom:20}}>
+        <div style={{...T.t,fontSize:12,fontWeight:600,letterSpacing:"0.12em",color:C.dim,
+          textTransform:"uppercase",marginBottom:8,borderBottom:"1px solid "+C.border,paddingBottom:6}}>
+          {PERIOD_LABELS[period]}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+          {bks.map((b,i)=><div key={b.id} style={{display:"flex",alignItems:"center",gap:12,
+            padding:"10px 12px",background:C.s1,border:"1px solid "+C.border,borderRadius:4}}>
+            <div style={{...T.t,fontSize:14,color:C.dim,width:20}}>{i+1}.</div>
+            <div style={{flex:1,cursor:"pointer"}} onClick={()=>onOpenBook(b)}>
+              <div style={{...T.t,fontSize:16,fontWeight:600,color:C.ivory}}>{b.nazev}</div>
+              <div style={{...T.m,fontSize:10,color:C.dim}}>{b.autor}</div>
+            </div>
+            <button onClick={()=>onToggle(b.id)} style={{...T.m,fontSize:9,padding:"3px 8px",
+              borderRadius:3,background:"transparent",color:C.dim,border:"1px solid "+C.border,cursor:"pointer"}}>
+              Odebrat
+            </button>
+          </div>)}
+        </div>
+      </div>;
+    })}
+
+    {moje.length===20&&<div style={{background:C.merlot+"11",border:"1px solid "+C.merlot+"33",
+      borderRadius:4,padding:12,textAlign:"center"}}>
+      <div style={{...T.t,fontSize:16,color:C.merlot,fontWeight:600}}>Seznam je kompletní!</div>
+      <div style={{...T.m,fontSize:10,color:C.dim,marginTop:4}}>Máš všech 20 knih vybraných.</div>
+    </div>}
+  </div>;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// APP — stav aplikace:
+//   user: null | {jmeno, trida, vybrane:[ids]}
+//   tab: "knihovna" | "seznam" | "glosar"
+//   openBook: null | book object
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function App(){
+  const [user,setUser]=useState(null);
+  const [tab,setTab]=useState("knihovna");
+  const [vybrane,setVybraneState]=useState([]);
+  const [openBook,setOpenBook]=useState(null);
+
+  async function saveVybrane(ids){
+    if(!user) return;
+    await safe(apiCall({
+      action:"write",type:"users",
+      data:JSON.stringify({jmeno:user.jmeno,trida:user.trida,pin:user.pin||"",vybrane:JSON.stringify(ids)})
+    }));
+  }
+
+  function toggleBook(id){
+    setVybraneState(prev=>{
+      let next;
+      if(prev.includes(id)){
+        next=prev.filter(x=>x!==id);
+      } else {
+        if(prev.length>=20){alert("Máš už 20 knih!");return prev;}
+        next=[...prev,id];
+      }
+      saveVybrane(next);
+      return next;
+    });
+  }
+
+  function handleLogin(u){
+    setUser({...u});
+    setVybraneState(u.vybrane||[]);
+  }
+
+  function handleLogout(){
+    setUser(null);setVybraneState([]);setOpenBook(null);setTab("knihovna");
+  }
+
+  if(!user) return <LoginView onLogin={handleLogin}/>;
+
+  const TABS=[
+    {id:"knihovna",label:"Knihovna"},
+    {id:"seznam",label:"Můj seznam"},
+    {id:"glosar",label:"Glosář"},
+  ];
+
+  return <div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column"}}>
+    {/* Header */}
+    <div style={{background:C.s0,borderBottom:"1px solid "+C.border,
+      padding:"0 16px",display:"flex",alignItems:"center",justifyContent:"space-between",height:48}}>
+      <BrandLogo size={16}/>
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <div style={{...T.m,fontSize:10,color:C.dim}}>{user.jmeno} · {user.trida}</div>
+        <button onClick={handleLogout} style={{...T.m,fontSize:9,color:C.dim,background:"none",
+          border:"1px solid "+C.border,borderRadius:3,padding:"4px 10px",cursor:"pointer",
+          letterSpacing:"0.05em"}}>Odhlásit</button>
+      </div>
+    </div>
+
+    {/* Content */}
+    <div style={{flex:1,overflowY:"auto",padding:"16px 16px 80px"}}>
+      {openBook
+        ? <RozborView book={openBook} user={user} onBack={()=>setOpenBook(null)}
+            vybrane={vybrane} onToggle={toggleBook}/>
+        : tab==="knihovna"
+          ? <KnihovnaView user={user} vybrane={vybrane} onToggle={toggleBook} onOpenBook={setOpenBook}/>
+          : tab==="seznam"
+            ? <MujSeznamView user={user} vybrane={vybrane} onToggle={toggleBook} onOpenBook={setOpenBook}/>
+            : <GlosarView/>
+      }
+    </div>
+
+    {/* Bottom nav */}
+    {!openBook&&<div style={{position:"fixed",bottom:0,left:0,right:0,background:C.s0,
+      borderTop:"1px solid "+C.border,display:"flex",height:56}}>
+      {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)}
+        style={{flex:1,...T.m,fontSize:10,letterSpacing:"0.06em",textTransform:"uppercase",
+          background:"none",border:"none",cursor:"pointer",
+          color:tab===t.id?C.merlot:C.dim,
+          borderTop:tab===t.id?"2px solid "+C.merlot:"2px solid transparent"}}>
+        {t.id==="seznam"?`${t.label} ${vybrane.length}/20`:t.label}
+      </button>)}
+    </div>}
+  </div>;
+}
+
+const root=ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+</script>
+</body>
+</html>
